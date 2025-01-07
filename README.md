@@ -67,9 +67,9 @@ This document outlines the architecture of NihonNights, an Interactive Dashboard
 ## Team Member Contributions
 ### System Development ###
 * **林冠儒**
-1. System integration and final testing optimization
-2. Visualization design and implementation for Comprehensive Analysis Page
-3. Data Preprocessing
+1. Data Preprocessing
+2. Visualization design and implementation for Comprehensive Analysis/ Page
+3. System integration and final testing optimization
 4. Slides content development and refinement
 
 * **莊子儀**
