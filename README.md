@@ -4,7 +4,7 @@ NihonNights is a platform providing comprehensive analysis of hostels across Jap
 ## System Architecture
 This document outlines the architecture of NihonNights, an Interactive Dashboard for Japanese Hostel Analysis and Comparison. The system is divided into three main components, each serving specific user needs in the hostel selection process.
 ## 1. Comprehensive Analysis Page
-![Comprehensive Analysis Page](./Logo/Comprehensive_Analysis_Page.png) 
+![Comprehensive Analysis Page](./Logo/comprehensive_analysis_page.png) 
 1. **Website Title**
     > Welcome interface introducing system features and guiding users through available analysis tools.
 
