@@ -1,0 +1,3082 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Japan Hostel Hub | HomePage</title>
+    <link rel="stylesheet" href="HomePage.css">
+    <script src="https://d3js.org/d3.v6.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="ListOfHostels.css">
+
+    <style>
+    </style>
+</head>
+
+<body>
+
+    <button class="menu-button"><strong>Filter</strong></button>
+    <div class="side-menu">
+        <div class="checkbox-section">General Services</div>
+        <div class="checkbox-container1" style="padding-bottom: 5px;"></div>
+        <hr style="border: none; height: 2px; background-color: #cccccc;">
+        <div class="checkbox-section">Hotel Facilities</div>
+        <div class="checkbox-container2" style="padding-bottom: 5px;"></div>
+        <hr style="border: none; height: 2px; background-color: #cccccc;">
+        <div class="checkbox-section">Dining & Beverages</div>
+        <div class="checkbox-container3" style="padding-bottom: 5px;"></div>
+        <hr style="border: none; height: 2px; background-color: #cccccc;">
+        <div class="checkbox-section">Leisure & Entertainments</div>
+        <div class="checkbox-container4" style="padding-bottom: 5px;"></div>
+        <hr style="border: none; height: 2px; background-color: #cccccc;">
+    </div>
+
+    <div id="my_dataviz"></div>
+
+    <div class="hostel-list-header">
+        <div
+            style="text-align: left; color: #fff; font-family: 'Times New Roman'; font-size: 40px; font-weight: bold; padding-left: 10px; padding-top: 10px;">
+            Japan Hostel Search
+            <span style="font-size: 18px; font-weight: normal; display: inline; margin-left: 0px;">
+                Explore our curated selection of hostels across Japan.
+            </span>
+        </div>
+        <div class="search-container"
+            style="padding-left: 10px; margin-left: 0px; margin-top: 20px; display: flex; align-items: center; gap: 20px;">
+            <div style="position: relative;">
+                <i class="fas fa-search"
+                    style="color: #29292E; position: absolute; left: 15px; top: 50%; transform: translateY(-50%);"></i>
+                <input type="text" id="search-input" class="search-input"
+                    style="font-family: 'Times New Roman'; padding-left: 40px"
+                    placeholder="Search Hostel/ City Name...">
+            </div>
+            <div class="price-range-container" style="display: flex; flex-direction: column; min-width: 200px;">
+                <div
+                    style="display: flex; justify-content: space-between; color: #fff; font-family: 'Times New Roman'; margin-bottom: 5px;">
+                    <span id="min-price"><strong>NT$ 0</strong></span>
+                    <span id="max-price"><strong>NT$ 3000</strong></span>
+                </div>
+                <div class="range-slider" style="width: 100%;">
+                    <div class="slider-track"></div>
+                    <input type="range" id="min-range" min="0" max="3000" value="0" step="100">
+                    <input type="range" id="max-range" min="0" max="3000" value="3000" step="100">
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="container">
+        <div class="hostel-list">
+            <div class="hostel-grid" id="hostel-grid">
+                <div class="loading" style="font-family: 'Times New Roman'; ">Loading hostels data...</div>
+            </div>
+        </div>
+        <div class="comparison-panel">
+            <p style="text-align: center; font-family: 'Times New Roman'; font-size:30px; font-weight: bold;">
+                Comparison
+                Panel</p>
+            <div class="selected-hostels" id="selected-hostels">
+                <div class="empty-state" style="font-family: 'Times New Roman';">Please Select 2-3 hostels for
+                    comparison</div>
+            </div>
+            <button class="compare-btn" id="compare-btn" style="font-family: 'Times New Roman'; "
+                disabled>Compare</button>
+        </div>
+    </div>
+
+    <div id="hostel-modal" class="modal-container" style="display: none;">
+        <!-- Modal content will be injected here -->
+    </div>
+
+    <script>
+
+        // #region Global Variables
+        const prefectureStates = {};
+        let selectedCity = null;
+        let currentFilteredHostels = [];
+        let displayedHostels = [];
+        // #endregion
+
+        // #region Menu-Button Control
+        const menuButton = document.querySelector('.menu-button');
+        const sideMenu = document.querySelector('.side-menu');
+        let isMenuOpen = false;
+
+        menuButton.addEventListener('click', () => {
+            isMenuOpen = !isMenuOpen;
+            menuButton.classList.toggle('active');
+            sideMenu.classList.toggle('active');
+        });
+        // #endregion
+
+        // #region Basic svg settings
+        // Set the dimensions and margins of the graph
+        const margin = { top: 100, right: 180, bottom: 100, left: 50 },
+            width = 1550 - margin.left - margin.right,
+            height = 700 - margin.top - margin.bottom;
+
+        // Append the svg object to the bodyScale of the page
+        const svg = d3.select("#my_dataviz")
+            .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+        // #endregion 
+
+        // #region Title
+        const title = svg.append("text")
+            .attr("class", "title")
+            .attr("x", -40)
+            .attr("y", -55)
+            .text("Japan Hostel Hub")
+            .attr("text-anchor", "left")
+            .attr("font-weight", "bold")
+            .attr("font-size", "40px")
+            .attr("fill", "#f9f9f9");
+
+        const subTitle = svg.append("text")
+            .attr("class", "subTitle")
+            .attr("y", -40)
+            .selectAll("tspan")
+            .data(["A comprehensive analysis of hostels in Japan across different cities,", "comparing average prices, ratings, distances, and various facilities ", "through interactive charts and filters."])
+            .enter()
+            .append("tspan")
+            .attr("font-size", "17px")
+            .attr("fill", "#cccccc")
+            .attr("x", -38)
+            .attr("dy", 18)
+            .text(d => d);
+        // #endregion
+
+        // #region Matching: Geo
+        const cityPrefectureMap = {
+            'Tokyo': '東京都',
+            'Kyoto': '京都府',
+            'Osaka': '大阪府',
+            'Sapporo': '北海道',
+            'Fukuoka': '福岡県',
+            'Hiroshima': '広島県',
+            'Nagano': '長野県',
+            'Okinawa': '沖縄県',
+            'Mount Fuji': '静岡県',
+            'Hakone': '神奈川県'
+        };
+        // #endregion
+
+        // #region Matching: Menu Item
+        const serviceMapping = {
+            // General Services
+            '24Hour Reception': 'service_24HourReception',
+            '24Hour Security': 'service_24HourSecurity',
+            'Currency Exchange': 'service_currencyExchange',
+            'Fax': 'service_fax',
+            'Housekeeping': 'service_housekeeping',
+            'Laundry': 'service_laundry',
+            'Luggage Storage': 'service_luggageStorage',
+            'Morning Call': 'service_morningCall',
+            'Postal': 'service_postal',
+            'Travel Desk': 'service_travelDesk',
+
+            // Hotel Facilities
+            'Adaptor': 'general_adaptor',
+            'Air Conditioning': 'general_airConditioning',
+            'Cable TV': 'general_cableTV',
+            'Ceiling Fan': 'general_ceilingFan',
+            'Reading Light': 'general_readingLight',
+            'Security Locker': 'general_securityLocker',
+            'Hair Dryer': 'general_hairDryers',
+            'Hot Shower': 'general_hotShower',
+            'Hot Tub': 'general_hotTub',
+            'Iron': 'general_iron',
+            'Cooker': 'general_cooker',
+            'Dishwasher': 'general_dishwasher',
+            'Fridge': 'general_fridge',
+            'Microwave': 'general_microwave',
+            'Utensils': 'general_utensils',
+            'BBQ': 'general_bbq',
+            'Child Play Area': 'general_childPlayArea',
+            'Common Room': 'general_commonRoom',
+            'Elevator': 'general_elevator',
+            'Fitness Centre': 'general_fitnessCentre',
+            'KeyCard Access': 'general_keyCardAccess',
+            'Meeting Room': 'general_meetingRoom',
+            'Outdoor Terrace': 'general_outdoorTerrace',
+            'Parking': 'general_parking',
+            'Self Catering': 'general_selfCateringFacilities',
+            'Washing Machine': 'general_washingMachine',
+            'Wheelchair': 'general_wheelchairFriendly',
+
+            // Dining & Beverages
+            'Bar': 'foodDrink_bar',
+            'Cafe': 'foodDrink_cafe',
+            'Restaurant': 'foodDrink_restaurant',
+            'Vending Machine': 'foodDrink_vendingMachine',
+
+            // Leisure & Entertainments
+            'Boardgame': 'entertainment_boardGame',
+            'DVD': 'entertainment_DVD',
+            'Foosball': 'entertainment_foosball',
+            'PlayStation': 'entertainment_playStation',
+            'Pool Table': 'entertainment_poolTable',
+            'Wii': 'entertainment_wii'
+        };
+        // #endregion
+
+        Promise.all([
+            d3.csv("Hostels.csv"),
+            d3.json("https://raw.githubusercontent.com/dataofjapan/land/master/japan.topojson")
+        ]).then(function ([hostelData, japanData]) {
+            const japan = topojson.feature(japanData, japanData.objects.japan);
+
+            // #region: Compute: Hostel count
+            const hostelCounts = {};
+            hostelData.forEach(hostel => {
+                if (hostel.city && cityPrefectureMap[hostel.city]) {
+                    const prefectureName = cityPrefectureMap[hostel.city];
+                    hostelCounts[prefectureName] = (hostelCounts[prefectureName] || 0) + 1;
+                }
+            });
+
+            // Print hostel counts
+            console.log("Hostel counts:", hostelCounts);
+            // #endregion
+
+            // #region Visualization: Map
+            const projection = d3.geoMercator()
+                .center([137, 37])
+                .scale(1100)
+                .translate([width / 5 + 5, height / 2 + 45]);
+
+            const path = d3.geoPath().projection(projection);
+
+            // Create tooltip for map
+            const mapTooltip = d3.select("body").append("div")
+                .attr("class", "map-tooltip")
+                .style("opacity", 0)
+                .style("position", "absolute")
+                .style("background-color", "rgba(255, 255, 255, 0.9)")
+                .style("padding", "8px")
+                .style("border-radius", "4px")
+                .style("font-size", "12px")
+                .style("pointer-events", "none")
+                .style("box-shadow", "0 2px 4px rgba(0,0,0,0.1)");
+
+            // 設定顏色比例尺
+            const maxHostels = d3.max(Object.values(hostelCounts)) || 1;
+            const colorScale = d3.scaleSequential()
+                .domain([0, maxHostels])
+                .interpolator(t => d3.interpolate("#f9f9f9", "#004080")(t));
+
+            // 日文到英文城市名的映射
+            const prefectureToEnglish = {
+                "東京都": "Tokyo",
+                "京都府": "Kyoto",
+                "大阪府": "Osaka",
+                "北海道": "Hokkaido",
+                "福岡県": "Fukuoka",
+                "広島県": "Hiroshima",
+                "長野県": "Nagano",
+                "沖縄県": "Okinawa",
+                "静岡県": "Shizuoka",
+                "神奈川県": "Kanagawa"
+            };
+
+            // 創建放大效果的比例尺
+            const scaleSize = 1.2;
+
+            // 繪製縣份
+            svg.selectAll(".prefecture")
+                .data(japan.features)
+                .enter()
+                .append("path")
+                .attr("class", "prefecture")
+                .attr("d", path)
+                .attr("fill", d => {
+                    const prefName = d.properties.nam_ja;
+                    const count = hostelCounts[prefName] || 0;
+                    return colorScale(count);
+                })
+                .on("mouseover", function (event, d) {
+                    const prefName = d.properties.nam_ja;
+                    const count = hostelCounts[prefName] || 0;
+                    const englishName = prefectureToEnglish[prefName] || prefName;
+
+                    // 放大效果
+                    const selection = d3.select(this);
+                    const currentFill = selection.attr("fill"); // 保存當前顏色
+
+                    selection
+                        .transition()
+                        .duration(200)
+                        .attr("transform", function (d) {
+                            const centroid = path.centroid(d);
+                            return `translate(${centroid[0]},${centroid[1]}) scale(${scaleSize}) translate(${-centroid[0]},${-centroid[1]})`;
+                        })
+                        .attr("fill", currentFill); // 保持原來的顏色
+
+                    // 显示tooltip
+                    mapTooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+
+                    mapTooltip.html(`
+            <strong>${englishName}</strong><br/>
+            <strong>Hostel count:</strong> ${count}
+        `)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function (event, d) {
+                    // 恢复原始大小，不改變顏色
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr("transform", "");
+
+                    // 隐藏tooltip
+                    mapTooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                })
+                .on("click", function (event, d) {
+                    const prefName = d.properties.nam_ja;
+                    const city = Object.keys(cityPrefectureMap)
+                        .find(city => cityPrefectureMap[city] === prefName);
+
+                    if (city) {
+                        const currentSelection = d3.select(this);
+
+                        // 使用狀態追蹤來確定是否為紅色
+                        prefectureStates[prefName] = !prefectureStates[prefName];
+
+                        if (prefectureStates[prefName]) {
+                            // 變為紅色
+                            currentSelection
+                                .transition()
+                                .duration(200)
+                                .attr("fill", "#ff0000");
+                        } else {
+                            // 恢復原始顏色
+                            currentSelection
+                                .transition()
+                                .duration(200)
+                                .attr("fill", d => {
+                                    const pName = d.properties.nam_ja;
+                                    const count = hostelCounts[pName] || 0;
+                                    return colorScale(count);
+                                });
+                        }
+
+                        highlightCity(city);
+                    }
+                })
+
+            // Create color legend
+            const legendWidth = 20;
+            const legendHeight = 150;
+
+            const mapLegend = svg.append("g")
+                .attr("class", "mapLegend")
+                .attr("transform", `translate(${width / 5 - 265}, ${height / 2 - 130})`);
+
+            // Create gradient
+            const defs = svg.append("defs");
+            const gradient = defs.append("linearGradient")
+                .attr("id", "mapColorGradient")
+                .attr("x1", "0%")
+                .attr("x2", "0%")
+                .attr("y1", "0%")
+                .attr("y2", "100%");
+
+            gradient.append("stop")
+                .attr("offset", "0%")
+                .attr("stop-color", "#004080");
+
+            gradient.append("stop")
+                .attr("offset", "100%")
+                .attr("stop-color", "#f9f9f9");
+
+            // Add rectangle with gradient
+            mapLegend.append("rect")
+                .attr("width", legendWidth)
+                .attr("height", legendHeight)
+                .style("fill", "url(#mapColorGradient)")
+                .attr("stroke", "#f9f9f9")
+                .attr("stroke-width", "1.5px");
+
+            // Add title
+            mapLegend.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -legendHeight / 2)
+                .attr("y", -20)  // 向左移動適當距離
+                .attr("text-anchor", "middle")
+                .attr("fill", "#f9f9f9")
+                .attr("font-size", "14px")
+                .attr("font-weight", "bold")
+                .text("Number of Hostels");
+
+            // Add scale labels
+            const legendScale = d3.scaleLinear()
+                .domain([maxHostels, 0])
+                .range([0, legendHeight]);
+
+            const legendAxis = d3.axisRight(legendScale)
+                .ticks(5);
+
+            mapLegend.append("g")
+                .attr("transform", `translate(${legendWidth}, 0)`)
+                .call(legendAxis)
+                .selectAll("text")
+                .attr("fill", "#f9f9f9")
+                .attr("font-size", "12px");
+
+            // Style the axis
+            mapLegend.selectAll(".domain, .tick line")
+                .attr("stroke", "#f9f9f9")
+                .attr("stroke-width", "2px");
+
+            // Add Title
+            svg.append("text")
+                .attr("x", width / 10 - 75)
+                .attr("y", '85px')
+                .attr("text-anchor", "middle")
+                .style("font-size", "20px")
+                .style("fill", "#f9f9f9")
+                .style("font-weight", "bold")
+                .text("Hostel Count by City");
+            // #endregion
+
+            // #region Visualization: Boxplot
+            // Basic Settings
+            const boxPlotMargin = { top: 10, right: 10, bottom: 40, left: 10 };
+            const boxPlotWidth = 380 - boxPlotMargin.left - boxPlotMargin.right;
+            const boxPlotHeight = 280 - boxPlotMargin.top - boxPlotMargin.bottom;
+            const boxPlotSvg = svg.append("g")
+                .attr("class", "boxplot-container")
+                .attr("transform", `translate(${width / 2 - 40}, ${margin.top - 115})`);
+
+            // Establish Price Array
+            const prices = {};
+            hostelData.forEach(d => {
+                if (!prices[d.city]) {
+                    prices[d.city] = [];
+                }
+                if (!isNaN(d.price)) {
+                    prices[d.city].push(+d.price);
+                }
+            });
+
+            // Set Scale
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(Object.values(prices).flat())])  // 使用所有價格中的最大值
+                .range([boxPlotHeight, 0])
+                .nice();
+
+            const xScale = d3.scaleBand()
+                .domain(Object.keys(prices).sort())
+                .range([0, boxPlotWidth])
+                .padding(0.1);
+
+            // Add Axis
+            boxPlotSvg.append("g")
+                .attr("transform", `translate(0,${boxPlotHeight})`)
+                .call(d3.axisBottom(xScale))
+                .attr("color", "#f9f9f9")
+                .call(g => {
+                    g.select(".domain")
+                        .attr("stroke-width", "2")
+                        .attr("stroke", "#f9f9f9");
+                    g.selectAll(".tick line")
+                        .attr("stroke", "#f9f9f9")
+                        .attr("stroke-width", "2")
+                        .attr("y2", 6);
+                    g.selectAll(".tick text")
+                        .attr("transform", "rotate(-45)")
+                        .style("text-anchor", "end")
+                        .attr("dy", "0em")  // 調整垂直位置
+                        .attr("dx", "-0.8em")  // 調整水平位置
+                        .attr("fill", "#f9f9f9")
+                        .attr("font-size", "12px");
+                });
+
+            boxPlotSvg.append("g")
+                .call(d3.axisLeft(yScale)
+                    .tickFormat(d => `$${d * 30}`))
+                .attr("color", "#f9f9f9")
+                .call(g => {
+                    g.select(".domain").attr("stroke", "#f9f9f9").attr("stroke-width", "2");
+                    g.selectAll(".tick line").attr("stroke", "#f9f9f9").attr("stroke-width", "2");;
+                })
+                .selectAll("text")
+                .attr("fill", "#f9f9f9")
+                .attr("font-size", "12px");
+
+            // Add Y Label
+            boxPlotSvg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -50)
+                .attr("x", -boxPlotHeight / 2)
+                .style("font-size", "16px")
+                .style("font-weight", "bold")
+                .attr("text-anchor", "middle")
+                .attr("fill", "#f9f9f9")
+                .text("Price (NTD)");
+
+            // Compute Boxplot Data
+            const boxPlotData = Object.entries(prices).map(([city, prices]) => {
+                const sorted = prices.sort((a, b) => a - b);
+                const q1 = d3.quantile(sorted, 0.25);
+                const median = d3.quantile(sorted, 0.5);
+                const q3 = d3.quantile(sorted, 0.75);
+                const iqr = q3 - q1;
+                const min = d3.max([q1 - 1.5 * iqr, d3.min(sorted)]);
+                const max = d3.min([q3 + 1.5 * iqr, d3.max(sorted)]);
+
+                return {
+                    city,
+                    min,
+                    q1,
+                    median,
+                    q3,
+                    max,
+                    outliers: sorted.filter(d => d < min || d > max)
+                };
+            });
+
+            // Add Boxplot
+            const boxWidth = xScale.bandwidth();
+
+            // 改為使用與 linechart 相同風格的 tooltip
+            const boxPlotTooltip = d3.select("body").append("div")
+                .attr("class", "boxplot-tooltip")
+                .style("opacity", 0)
+                .style("position", "absolute")
+                .style("background-color", "rgba(255, 255, 255, 0.9)")
+                .style("padding", "8px")
+                .style("border-radius", "4px")
+                .style("font-size", "12px")
+                .style("pointer-events", "none")
+                .style("box-shadow", "0 2px 4px rgba(0,0,0,0.1)");
+
+            // 修改 boxes 的滑鼠事件處理
+            const boxes = boxPlotSvg.selectAll(".box")
+                .data(boxPlotData)
+                .enter()
+                .append("g")
+                .attr("class", "box")
+                .attr("transform", d => `translate(${xScale(d.city)},0)`)
+                .on("mouseover", function (event, d) {
+                    // 顯示 tooltip，使用淡入效果
+                    boxPlotTooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+
+                    boxPlotTooltip
+                        .html(`
+                <strong>${d.city}</strong><br/>
+                <strong>Hostel count:</strong> ${prices[d.city].length}<br/>
+                <strong>Maximum: </strong>$${(d.max * 30).toFixed(2)}<br/>
+                <strong>Q3: </strong>$${(d.q3 * 30).toFixed(2)}<br/>
+                <strong>Median: </strong>$${(d.median * 30).toFixed(2)}<br/>
+                <strong>Q1: </strong>$${(d.q1 * 30).toFixed(2)}<br/>
+                <strong>Minimum: </strong>$${(d.min * 30).toFixed(2)}<br/>
+                ${d.outliers.length > 0 ? `<strong>Outliers: </strong>${d.outliers.length}` : ''}
+            `)
+                        .style("left", (event.pageX + 20) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function () {
+                    // 隱藏 tooltip，使用淡出效果
+                    boxPlotTooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                })
+                .on("click", function (event, d) {
+                    highlightCity(d.city);
+                });
+
+            // Add Whiskers
+            boxes.append("line")
+                .attr("class", "whisker")
+                .attr("x1", boxWidth * 0.5)
+                .attr("x2", boxWidth * 0.5)
+                .attr("y1", d => yScale(d.min))
+                .attr("y2", d => yScale(d.max))
+                .attr("stroke", "#f9f9f9")
+                .attr("srtoke-width", "2px");
+
+            // Add Boxes
+            boxes.append("rect")
+                .attr("x", boxWidth * 0.25)
+                .attr("y", d => yScale(d.q3))
+                .attr("width", boxWidth * 0.5)
+                .attr("height", d => yScale(d.q1) - yScale(d.q3))
+                .attr("fill", "#4682B4")
+                .attr("stroke", "#f9f9f9");
+
+            // Add Median Line
+            boxes.append("line")
+                .attr("x1", boxWidth * 0.25)
+                .attr("x2", boxWidth * 0.75)
+                .attr("y1", d => yScale(d.median))
+                .attr("y2", d => yScale(d.median))
+                .attr("stroke", "#f9f9f9")
+                .attr("stroke-width", 1);
+
+            // Add Upper&Lower Bound
+            boxes.append("line")
+                .attr("class", "whisker-cap")
+                .attr("x1", boxWidth * 0.25)
+                .attr("x2", boxWidth * 0.75)
+                .attr("y1", d => yScale(d.min))
+                .attr("y2", d => yScale(d.min))
+                .attr("stroke", "#f9f9f9");
+
+            boxes.append("line")
+                .attr("class", "whisker-cap")
+                .attr("x1", boxWidth * 0.25)
+                .attr("x2", boxWidth * 0.75)
+                .attr("y1", d => yScale(d.max))
+                .attr("y2", d => yScale(d.max))
+                .attr("stroke", "#f9f9f9");
+
+            // Add Outliers
+            boxes.each(function (d) {
+                if (d.outliers.length > 0) {
+                    d3.select(this)
+                        .selectAll(".outlier")
+                        .data(d.outliers)
+                        .enter()
+                        .append("circle")
+                        .attr("class", "outlier")
+                        .attr("cx", boxWidth * 0.5)
+                        .attr("cy", v => yScale(v))
+                        .attr("r", 2)
+                        .attr("fill", "#f9f9f9");
+                }
+            });
+
+            // Add Title
+            boxPlotSvg.append("text")
+                .attr("x", boxPlotWidth / 2 - 10)
+                .attr("y", '-35px')
+                .attr("text-anchor", "middle")
+                .style("font-size", "20px")
+                .style("fill", "#f9f9f9")
+                .style("font-weight", "bold")
+                .text("Average Budget by City");
+            // #endregion
+
+            // #region Visualization: LineChart
+            // Basic Settings
+            const lineChartMargin = { top: 10, right: 10, bottom: 10, left: -5 };
+            const lineChartWidth = 380;
+            const lineChartHeight = 210;
+
+            // Create tooltip div
+            const lineChartTooltip = d3.select("body").append("div")
+                .attr("class", "linechart-tooltip")
+                .style("opacity", 0)
+                .style("position", "absolute")
+                .style("background-color", "rgba(255, 255, 255, 0.9)")
+                .style("padding", "8px")
+                .style("border-radius", "4px")
+                .style("font-size", "12px")
+                .style("pointer-events", "none")
+                .style("box-shadow", "0 2px 4px rgba(0,0,0,0.1)");
+
+            // Create line chart SVG
+            const lineChartSvg = svg.append("g")
+                .attr("class", "linechart-container")
+                .attr("transform", `translate(${width / 2 - 40}, ${height - 150})`);
+
+            // Calculate Average
+            const ratingMetrics = ['atmosphere', 'cleanliness', 'location', 'security', 'staff'];
+            const cityRatings = {};
+
+            hostelData.forEach(hostel => {
+                if (!cityRatings[hostel.city]) {
+                    cityRatings[hostel.city] = {
+                        security: [],
+                        location: [],
+                        staff: [],
+                        atmosphere: [],
+                        cleanliness: []
+                    };
+                }
+
+                ratingMetrics.forEach(metric => {
+                    if (!isNaN(hostel[metric])) {
+                        cityRatings[hostel.city][metric].push(Number(hostel[metric]));
+                    }
+                });
+            });
+
+            const cityAverages = Object.keys(cityRatings).map(city => {
+                const averages = {
+                    city: city,
+                    count: cityRatings[city][ratingMetrics[0]].length  // Add hostel count
+                };
+                ratingMetrics.forEach(metric => {
+                    const values = cityRatings[city][metric];
+                    averages[metric] = values.length > 0 ?
+                        values.reduce((a, b) => a + b, 0) / values.length : 0;
+                });
+                return averages;
+            });
+
+            // Set Scale
+            const xLineScale = d3.scaleBand()
+                .domain(cityAverages.map(d => d.city).sort())
+                .range([0, lineChartWidth - lineChartMargin.left - lineChartMargin.right])
+                .padding(0.1);
+
+            const yLineScale = d3.scaleLinear()
+                .domain([0, 10])  // Most ratings are between 8 and 10
+                .range([lineChartHeight - lineChartMargin.bottom, lineChartMargin.top]);
+
+            // Create axes
+            const xLineAxis = d3.axisBottom(xLineScale);
+            const yLineAxis = d3.axisLeft(yLineScale);
+
+            // Add X axis
+            lineChartSvg.append("g")
+                .attr("transform", `translate(${lineChartMargin.left}, ${lineChartHeight - lineChartMargin.bottom})`)
+                .call(xLineAxis)
+                .call(g => {
+                    g.select(".domain").attr("stroke", "#f9f9f9").attr("stroke-width", "2px");
+                    g.selectAll(".tick line").attr("stroke", "#f9f9f9").attr("stroke-width", "2px");
+                })
+                .selectAll("text")
+                .attr("transform", "rotate(-45)")
+                .style("text-anchor", "end")
+                .attr("dy", "0em")
+                .attr("dx", "-0.8em")
+                .attr("fill", "#f9f9f9")
+                .attr("font-size", "12px");
+
+            // Add Y axis
+            lineChartSvg.append("g")
+                .attr("transform", `translate(${lineChartMargin.left}, 0)`)
+                .call(yLineAxis)
+                .call(g => {
+                    g.select(".domain").attr("stroke", "#f9f9f9").attr("stroke-width", "2px");
+                    g.selectAll(".tick line").attr("stroke", "#f9f9f9").attr("stroke-width", "2px");
+                })
+                .selectAll("text")
+                .attr("fill", "#f9f9f9")
+                .attr("font-size", "12px");
+
+            // Add Y Label
+            lineChartSvg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -45)
+                .attr("x", -lineChartHeight / 2)
+                .style("font-size", "16px")
+                .attr("text-anchor", "middle")
+                .attr("fill", "#f9f9f9")
+                .attr("font-weight", "bold")
+                .text("Average Ratings");
+
+            // Create line generator
+            const lineGenerator = d3.line()
+                .x(d => lineChartMargin.left + xLineScale(d.city) + xLineScale.bandwidth() / 2)
+                .y(d => yLineScale(d.value));
+
+            // Add tooltip guide lines frame
+            const tooltipLine = lineChartSvg.append("g")
+                .attr("class", "tooltip-line")
+                .style("display", "none");
+
+            tooltipLine.append("line")
+                .attr("class", "tooltip-line-x")
+                .attr("stroke", "#f9f9f9")
+                .attr("stroke-width", 1)
+                .attr("stroke-dasharray", "5,5");
+
+            tooltipLine.append("line")
+                .attr("class", "tooltip-line-y")
+                .attr("stroke", "#f9f9f9")
+                .attr("stroke-width", 1)
+                .attr("stroke-dasharray", "5,5");
+
+            // Define colors for each metric
+            const colors = {
+                atmosphere: "#ff7300",
+                cleanliness: "#0088fe",
+                location: "#82ca9d",
+                security: "#8884d8",
+                staff: "#ffc658",
+            };
+
+            // Create lines and points
+            ratingMetrics.forEach(metric => {
+                const metricData = cityAverages
+                    .sort((a, b) => a.city.localeCompare(b.city))
+                    .map(d => ({
+                        city: d.city,
+                        value: d[metric],
+                        count: d.count  // Include count in metric data
+                    }));
+
+                const path = lineChartSvg.append("path")
+                    .datum(metricData)
+                    .attr("class", `line-${metric}`)
+                    .attr("fill", "none")
+                    .attr("stroke", colors[metric])
+                    .attr("stroke-width", 2)
+                    .attr("d", lineGenerator);
+
+                // Add points with class names
+                lineChartSvg.selectAll(`.dot-${metric}`)
+                    .data(metricData)
+                    .enter()
+                    .append("circle")
+                    .attr("class", `dot-${metric}`)
+                    .attr("cx", d => lineChartMargin.left + xLineScale(d.city) + xLineScale.bandwidth() / 2)
+                    .attr("cy", d => yLineScale(d.value))
+                    .attr("r", 3)
+                    .attr("fill", colors[metric])
+                    .on("mouseover", function (event, d) {
+                        const [mouseX, mouseY] = d3.pointer(event);
+
+                        // Show tooltip
+                        lineChartTooltip.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+
+                        // Set tooltip content with hostel count
+                        lineChartTooltip
+                            .html(`<strong>${d.city}</strong><br/>
+                       <strong>Hostel count:</strong> ${d.count}<br/>
+                       <strong>${metric.charAt(0).toUpperCase() + metric.slice(1)}</strong>: ${d.value.toFixed(2)}`)
+                            .attr("font-size", "12px")
+                            .style("left", (event.pageX + 20) + "px")
+                            .style("top", (event.pageY - 28) + "px");
+
+                        // Highlight current point
+                        d3.select(this)
+                            .transition()
+                            .duration(200)
+                            .attr("r", 5);
+
+                        // Show guide lines
+                        tooltipLine.style("display", "block");
+
+                        // Update vertical guide line
+                        tooltipLine.select(".tooltip-line-x")
+                            .attr("x1", lineChartMargin.left + xLineScale(d.city) + xLineScale.bandwidth() / 2)
+                            .attr("x2", lineChartMargin.left + xLineScale(d.city) + xLineScale.bandwidth() / 2)
+                            .attr("y1", yLineScale(d.value))
+                            .attr("y2", lineChartHeight - lineChartMargin.bottom);
+                    })
+                    .on("mouseout", function () {
+                        // Hide tooltip
+                        lineChartTooltip.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+
+                        // Reset point size
+                        d3.select(this)
+                            .transition()
+                            .duration(200)
+                            .attr("r", 3);
+
+                        // Hide guide lines
+                        tooltipLine.style("display", "none");
+                    })
+                    .on("click", function (event, d) {
+                        highlightCity(d.city);
+                    });
+            });
+
+            // Add legend at line chart initialization
+            const legend = lineChartSvg.append("g")
+                .attr("class", "legend")
+                .attr("transform", `translate(${lineChartWidth - 10}, ${lineChartMargin.top + 5})`);
+
+            // Create legend items
+            const legendItems = legend.selectAll(".legend-item")
+                .data(ratingMetrics)
+                .enter()
+                .append("g")
+                .attr("class", "legend-item")
+                .attr("transform", (d, i) => `translate(0, ${i * 20})`)
+                .style("cursor", "pointer");
+
+            // Add legend color squares
+            legendItems.append("rect")
+                .attr("x", 0)
+                .attr("width", 10)
+                .attr("height", 10)
+                .attr("fill", d => colors[d])
+                .attr("class", d => `legend-box-${d}`);
+
+            // Add legend text
+            legendItems.append("text")
+                .attr("x", 13)
+                .attr("y", 10)
+                .style("font-size", "12px")
+                .attr("fill", "#f9f9f9")
+                .text(d => d.charAt(0).toUpperCase() + d.slice(1));
+
+            // Create object to track metric visibility
+            const metricVisibility = {};
+            ratingMetrics.forEach(metric => {
+                metricVisibility[metric] = true;
+            });
+
+            // Add click events
+            legendItems.on("click", function (event, d) {
+                // Toggle visibility
+                metricVisibility[d] = !metricVisibility[d];
+
+                // Update legend box visual
+                const box = legend.select(`.legend-box-${d}`);
+                box.attr("fill", metricVisibility[d] ? colors[d] : "#666666");
+
+                // Update line visibility
+                lineChartSvg.select(`.line-${d}`)
+                    .transition()
+                    .duration(300)
+                    .style("opacity", metricVisibility[d] ? 1 : 0);
+
+                // Update point visibility
+                lineChartSvg.selectAll(`.dot-${d}`)
+                    .transition()
+                    .duration(300)
+                    .style("opacity", metricVisibility[d] ? 1 : 0);
+            });
+
+            // Add title
+            lineChartSvg.append("text")
+                .attr("x", lineChartWidth / 2)
+                .attr("y", '-15px')
+                .attr("text-anchor", "middle")
+                .style("font-size", "20px")
+                .attr("font-weight", "bold")
+                .style("fill", "#f9f9f9")
+                .text("Average Ratings by City");
+
+            // Line chart points click events
+            ratingMetrics.forEach(metric => {
+                svg.selectAll(`.dot-${metric}`)
+                    .on("click", function (event, d) {
+                        highlightCity(d.city);
+                    });
+            });
+            // #endregion
+
+            // #region Visualization: RadarChart
+            // Basic Settings
+            const radarMargin = { top: 10, right: -10, bottom: 10, left: 10 };
+            const radarWidth = 300 - radarMargin.left - radarMargin.right;
+            const radarHeight = 250 - radarMargin.top - radarMargin.bottom;
+            const radius = Math.min(radarWidth, radarHeight) / 2;
+            const radarSvg = svg.append("g")
+                .attr("class", "radar-container")
+                .attr("transform", `translate(${width - radarWidth + 120}, ${margin.top - 100})`);
+
+            // Calculate average distance for each city
+            const cityDistances = {};
+            hostelData.forEach(hostel => {
+                if (!cityDistances[hostel.city]) {
+                    cityDistances[hostel.city] = {
+                        sum: 0,
+                        count: 0
+                    };
+                }
+                if (hostel.distance) {
+                    cityDistances[hostel.city].sum += +hostel.distance;
+                    cityDistances[hostel.city].count += 1;
+                }
+            });
+
+            // Sort cities alphabetically to ensure consistent order
+            const cities = Object.keys(cityDistances).sort();
+            const averageDistances = cities.map(city => ({
+                city,
+                distance: cityDistances[city].sum / cityDistances[city].count
+            }));
+
+            // Calculate angles for each city
+            const angleStep = (2 * Math.PI) / cities.length;
+            const getAngle = (index) => angleStep * index - Math.PI / 2;
+
+            // Create scales
+            const radiusScale = d3.scaleLinear()
+                .domain([0, d3.max(averageDistances, d => d.distance)])
+                .range([0, radius]);
+
+            // Draw background circles
+            const circles = [1, 2, 3, 4, 5];
+            radarSvg.selectAll(".radar-circle")
+                .data(circles)
+                .enter()
+                .append("circle")
+                .attr("class", "radar-circle")
+                .attr("cx", radarWidth / 2)
+                .attr("cy", radarHeight / 2)
+                .attr("r", d => (radius * d) / circles.length)
+                .attr("fill", "none")
+                .attr("stroke", "#f9f9f9")
+                .attr("stroke-width", "2px")
+                .attr("opacity", 0.2);
+
+            // Draw axis lines
+            averageDistances.forEach((d, i) => {
+                const angle = getAngle(i);
+                radarSvg.append("line")
+                    .attr("x1", radarWidth / 2)
+                    .attr("y1", radarHeight / 2)
+                    .attr("x2", radarWidth / 2 + radius * Math.cos(angle))
+                    .attr("y2", radarHeight / 2 + radius * Math.sin(angle))
+                    .attr("stroke", "#f9f9f9")
+                    .attr("stroke-width", "2px")
+                    .attr("opacity", 0.2)
+                    .attr("class", "axis-line");
+            });
+
+            // Create the radar line generator and path
+            const radarLine = (data) => {
+                const points = data.map((d, i) => {
+                    const angle = getAngle(i);
+                    const radius = radiusScale(d.distance);
+                    return [
+                        radius * Math.cos(angle),
+                        radius * Math.sin(angle)
+                    ];
+                });
+
+                // Create a closed path by adding the first point at the end
+                points.push(points[0]);
+
+                return d3.line()(points);
+            };
+
+            // Add radar area
+            radarSvg.append("path")
+                .datum(averageDistances)
+                .attr("class", "radar-area")
+                .attr("d", radarLine)
+                .attr("transform", `translate(${radarWidth / 2}, ${radarHeight / 2})`)
+                .attr("fill", "#4682B4")
+                .attr("fill-opacity", 0.5)
+                .attr("stroke", "#f9f9f9")
+                .attr("stroke-width", 1.5)
+                .attr("stroke-linejoin", "round");
+
+            // Add city labels
+            averageDistances.forEach((d, i) => {
+                const angle = getAngle(i);
+                const labelRadius = radius + 20;
+
+                radarSvg.append("text")
+                    .attr("x", radarWidth / 2 + labelRadius * Math.cos(angle))
+                    .attr("y", radarHeight / 2 + labelRadius * Math.sin(angle))
+                    .attr("text-anchor", "middle")
+                    .attr("dominant-baseline", "middle")
+                    .attr("fill", "#f9f9f9")
+                    .attr("font-size", "14px")
+                    .attr("transform", d => {
+                        const x = radarWidth / 2 + labelRadius * Math.cos(angle);
+                        const y = radarHeight / 2 + labelRadius * Math.sin(angle);
+                        const degrees = (angle * 180 / Math.PI);
+                        return `rotate(${degrees + 90}, ${x}, ${y})`;
+                    })
+                    .text(d.city);
+            });
+
+            // Add distance values on axes
+            const axisValues = [12, 24, 36, 48, 60];
+            circles.forEach((_, i) => {
+                const circleRadius = (radius * (i + 1)) / circles.length;
+                const value = axisValues[i];
+                radarSvg.append("text")
+                    .attr("class", "axis-value")
+                    .attr("x", radarWidth / 2)
+                    .attr("y", radarHeight / 2 - circleRadius)
+                    .attr("dy", -5)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#f9f9f9")
+                    .attr("font-size", "10px")
+                    .text(value + "km");
+            });
+
+            // Add title
+            radarSvg.append("text")
+                .attr("x", radarWidth / 2 - 10)
+                .attr("y", -50)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#f9f9f9")
+                .attr("font-size", "20px")
+                .attr("font-weight", "bold")
+                .text("Average Distance from City Center");
+
+            // 首先定義 radar chart 專用的 tooltip
+            const radarChartTooltip = d3.select("body").append("div")
+                .attr("class", "radar-chart-tooltip")
+                .style("opacity", 0)
+                .style("position", "absolute")
+                .style("background-color", "rgba(255, 255, 255, 0.9)")
+                .style("padding", "8px")
+                .style("border-radius", "4px")
+                .style("font-size", "12px")
+                .style("pointer-events", "none")
+                .style("box-shadow", "0 2px 4px rgba(0,0,0,0.1)");
+
+            // 修改互動點的部分
+            radarSvg.selectAll(".radar-point")
+                .data(averageDistances)
+                .enter()
+                .append("circle")
+                .attr("class", "radar-point")
+                .attr("transform", `translate(${radarWidth / 2}, ${radarHeight / 2})`)
+                .attr("cx", (d, i) => radiusScale(d.distance) * Math.cos(getAngle(i)))
+                .attr("cy", (d, i) => radiusScale(d.distance) * Math.sin(getAngle(i)))
+                .attr("r", 3)
+                .attr("fill", "#f9f9f9")
+                .attr("data-city", d => d.city)
+                .on("mouseover", function (event, d) {
+                    // 顯示 tooltip，使用淡入效果
+                    radarChartTooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+
+                    radarChartTooltip
+                        .html(`
+                <strong>${d.city}</strong><br/>
+                <strong>Hostel count:</strong> ${cityDistances[d.city].count}<br/>
+                <strong>Average Distance:</strong> ${d.distance.toFixed(2)}km
+            `)
+                        .style("left", (event.pageX + 20) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                // 修改這段代碼
+                .on("mouseover", function (event, d) {
+                    // 添加點的大小變化動畫
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr("r", 5);  // hover 時變大到 6px
+
+                    radarChartTooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+
+                    radarChartTooltip
+                        .html(`
+            <strong>${d.city}</strong><br/>
+            <strong>Hostel count:</strong> ${cityDistances[d.city].count}<br/>
+            <strong>Average Distance:</strong> ${d.distance.toFixed(2)}km
+        `)
+                        .style("left", (event.pageX + 20) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function () {
+                    // 恢復點的原始大小
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .attr("r", 3);  // 恢復到原始大小 3px
+
+                    radarChartTooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                })
+                .on("click", function (event, d) {
+                    d3.selectAll(".radar-point")
+                        .attr("fill", "#f9f9f9")
+                        .attr("r", 3);
+
+                    d3.select(this)
+                        .attr("fill", "#ff0000")
+                        .attr("r", 3);
+
+                    highlightCity(d.city);
+                });
+
+
+            // Radar chart points
+            svg.selectAll(".radar-point")
+                .on("click", function (event, d) {
+                    highlightCity(d.city);
+                });
+            // #endregion
+
+            // #region Visualization: BarChart
+            // Set up dimensions for the bar chart
+            const rankingMargin = { top: 30, right: 10, bottom: 70, left: 30 };
+            const rankingWidth = 380;
+            const rankingHeight = 300;
+
+            // Create SVG container for ranking chart
+            const rankingSvg = svg.append("g")
+                .attr("class", "ranking-container")
+                .attr("transform", `translate(${width - rankingWidth + 160}, ${height - rankingHeight + 120})`);
+
+            // Calculate average scores by city
+            const avgScores = {};
+            const cityCounts = {};
+
+            hostelData.forEach(hostel => {
+                if (hostel.city && hostel.summary_score) {
+                    // Parse score as number if it's not already
+                    const score = +hostel.summary_score;
+                    if (!avgScores[hostel.city]) {
+                        avgScores[hostel.city] = 0;
+                        cityCounts[hostel.city] = 0;
+                    }
+                    avgScores[hostel.city] += score;
+                    cityCounts[hostel.city]++;
+                }
+            });
+
+            // Convert to array and sort alphabetically
+            const sumAverage = Object.keys(avgScores).map(city => ({
+                city: city,
+                score: +(avgScores[city] / cityCounts[city]).toFixed(2),
+                count: cityCounts[city]  // 加入這行來存儲每個城市的旅館數量
+            })).sort((a, b) => a.city.localeCompare(b.city));
+
+            // Create scales
+            const xRankingScale = d3.scaleBand()
+                .domain(sumAverage.map(d => d.city))
+                .range([rankingMargin.left, rankingWidth - rankingMargin.right])
+                .padding(0.2);
+
+            const yRankingScale = d3.scaleLinear()
+                .domain([0, d3.max(sumAverage, d => d.score)])
+                .range([rankingHeight - rankingMargin.bottom, rankingMargin.top])
+                .nice();
+
+            // Add title
+            rankingSvg.append("text")
+                .attr("x", rankingWidth / 2)
+                .attr("y", 10)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#f9f9f9")
+                .style("font-size", "20px")
+                .style("font-weight", "bold")
+                .text("Average Summary by City");
+
+            // Add sort button
+            const sortButton = rankingSvg.append("g")
+                .attr("class", "sort-button")
+                .style("cursor", "pointer")
+                .attr("transform", `translate(${rankingWidth - 42}, -5)`);
+
+            // 添加按鈕背景
+            sortButton.append("rect")
+                .attr("class", "button-background")
+                .attr("x", 0)
+                .attr("y", 0)
+                .attr("width", 25)
+                .attr("height", 25)
+                .attr("rx", 8)
+                .attr("fill", "#3a3a3c")  // 深灰色背景
+                .attr("stroke", "rgba(80, 80, 80, 0.3)")  // 深灰色邊框
+                .attr("stroke-width", 1);
+
+            // 添加按鈕的 SVG 圖示
+            const iconGroup = sortButton.append("g")
+                .attr("transform", "translate(3.5, 4)")
+                .call(g => {
+                    g.append("path")
+                        .attr("d", "M24.2441 18.373L21.293 21.3232L21.3125 11C21.3125 10.4473 20.8652 10 20.3125 10C19.7617 10 19.3125 10.4473 19.3125 11L19.293 21.2529L16.4141 18.373C16.0234 17.9834 15.3906 17.9834 15 18.373C14.6094 18.7637 14.6094 19.3975 15 19.7881L19.1152 23.9033C19.3887 24.2656 19.8242 24.5 20.3125 24.5C20.6934 24.5 21.0391 24.3594 21.3027 24.127C21.3418 24.0977 21.3789 24.0654 21.4141 24.0303L25.6582 19.7881C26.0488 19.3975 26.0488 18.7637 25.6582 18.373C25.2676 17.9834 24.6348 17.9834 24.2441 18.373Z")
+                        .attr("fill", "#ffffff")
+                        .attr("transform", "scale(0.6)");
+
+                    g.append("path")
+                        .attr("d", "M2 20.7002C2 21.1416 2.35742 21.5 2.80078 21.5H10.6992C10.8906 21.5 11.0664 21.4336 11.2031 21.3223C11.3848 21.1758 11.5 20.9512 11.5 20.7002V20.2998C11.5 19.8584 11.1426 19.5 10.6992 19.5H2.80078C2.56836 19.5 2.35938 19.5977 2.21289 19.7549C2.13086 19.8418 2.07031 19.9473 2.03516 20.0645C2.01172 20.1387 2 20.2178 2 20.2998V20.7002Z")
+                        .attr("fill", "#ffffff")
+                        .attr("transform", "scale(0.6)");
+
+                    g.append("path")
+                        .attr("d", "M2.50586 13.4434C2.42969 13.4131 2.35938 13.3721 2.29688 13.3213C2.11523 13.1748 2 12.9512 2 12.7002V12.2998C2 11.8584 2.35742 11.5 2.80078 11.5H15.1992C15.6426 11.5 16 11.8584 16 12.2998V12.7002C16 13.1416 15.6426 13.5 15.1992 13.5H2.80078C2.69727 13.5 2.59766 13.4795 2.50586 13.4434Z")
+                        .attr("fill", "#ffffff")
+                        .attr("transform", "scale(0.6)");
+
+                    g.append("path")
+                        .attr("d", "M2.07422 5.03516C2.02734 4.93359 2 4.82031 2 4.7002V4.2998C2 4.04492 2.11914 3.81738 2.30469 3.6709C2.44141 3.56348 2.61328 3.5 2.80078 3.5H24.1992C24.6426 3.5 25 3.8584 25 4.2998V4.7002C25 5.1416 24.6426 5.5 24.1992 5.5H2.80078C2.47852 5.5 2.20117 5.30957 2.07422 5.03516Z")
+                        .attr("fill", "#ffffff")
+                        .attr("transform", "scale(0.6)");
+                });
+
+
+            // First, create the tooltip div if it doesn't exist
+            const barChartTooltip = d3.select("body").append("div")
+                .attr("class", "barchart-tooltip")
+                .style("opacity", 0)
+                .style("position", "absolute")
+                .style("background-color", "rgba(255, 255, 255, 0.9)")
+                .style("padding", "8px")
+                .style("border-radius", "4px")
+                .style("font-size", "12px")
+                .style("pointer-events", "none")
+                .style("box-shadow", "0 2px 4px rgba(0,0,0,0.1)");
+
+            // Create bars
+            rankingSvg.selectAll(".bar")
+                .data(sumAverage)
+                .enter()
+                .append("rect")
+                .attr("class", "bar")
+                .attr("x", d => xRankingScale(d.city))
+                .attr("y", d => yRankingScale(d.score))
+                .attr("width", xRankingScale.bandwidth())
+                .attr("height", d => rankingHeight - rankingMargin.bottom - yRankingScale(d.score))
+                .attr("fill", "#4682B4")
+                .on("mouseover", function (event, d) {
+                    barChartTooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+
+                    barChartTooltip
+                        .html(`<strong>${d.city}</strong><br/><strong>Hostel count:</strong> ${d.count}<br><strong>Average Rating:</strong> ${d.score}`)
+                        .style("left", (event.pageX + 20) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function () {
+                    barChartTooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                });
+
+            // Add X axis
+            rankingSvg.append("g")
+                .attr("transform", `translate(0,${rankingHeight - rankingMargin.bottom})`)
+                .attr("class", "x-axis")
+                .attr("stroke-width", "2px")
+                .call(d3.axisBottom(xRankingScale))
+                .selectAll("text")
+                .attr("transform", "rotate(-45)")
+                .style("text-anchor", "end")
+                .attr("dy", "0em")
+                .attr("dx", "-0.8em")
+                .attr("fill", "#f9f9f9")
+                .style("font-size", "12px");
+
+            // Add Y axis
+            rankingSvg.append("g")
+                .attr("transform", `translate(${rankingMargin.left},0)`)
+                .attr("class", "y-axis")
+                .attr("stroke-width", "2px")
+                .call(d3.axisLeft(yRankingScale))
+                .selectAll("text")
+                .attr("fill", "#f9f9f9")
+                .style("font-size", "12px");
+
+            // Add Y axis label 
+            rankingSvg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -20)
+                .attr("x", -(rankingHeight - rankingMargin.bottom) / 2 - 10)
+                .attr("dy", "1em")
+                .style("text-anchor", "middle")
+                .attr("fill", "#f9f9f9")
+                .style("font-size", "16px")
+                .style("font-weight", "bold")
+                .text("Average Rating");
+
+            // Style the axes
+            rankingSvg.selectAll(".domain")
+                .attr("stroke", "#f9f9f9");
+            rankingSvg.selectAll(".tick line")
+                .attr("stroke", "#f9f9f9");
+
+            // Bar chart
+            svg.selectAll(".bar")
+                .on("click", function (event, d) {
+                    highlightCity(d.city);
+                });
+            // #endregion
+
+            // #region Checkbox: General
+            const genreGen = ['24Hour Reception', '24Hour Security', 'Currency Exchange', 'Fax',
+                'Housekeeping', 'Laundry', 'Luggage Storage', 'Morning Call',
+                'Postal', 'Travel Desk'];
+            const checkboxContainer1 = d3.select(".checkbox-container1");
+
+            checkboxContainer1
+                .style("display", "flex")
+                .style("flex-wrap", "wrap")
+                .style("width", "250px")
+                .style("padding-bottom", "10px");
+
+            // Create individual checkbox items with div wrapper
+            genreGen.forEach(d => {
+                const itemDiv = checkboxContainer1.append("div")
+                    .style("width", "120px")
+                    .style("height", "20px")
+                    .style("display", "flex")         // 新增
+                    .style("align-items", "flex-end") // 新增
+                    .style("gap", "5px");
+
+                itemDiv.append("input")
+                    .attr("class", "checkbox")
+                    .attr("type", "checkbox")
+                    .attr("id", "genre_" + d)
+                    .attr("name", "genre")
+                    .attr("value", d)
+                    .attr("checked", true);
+
+                itemDiv.append("label")
+                    .attr("for", "genre_" + d)
+                    .text(d)
+                    .style("font-size", "12px");
+            });
+
+            // Create Select All option with div wrapper
+            const selectAllDiv = checkboxContainer1.append("div")
+                .style("width", "120px")
+                .style("height", "20px").style("display", "flex")         // 新增
+                .style("align-items", "flex-end") // 新增
+                .style("gap", "5px");
+
+            selectAllDiv.append("input")
+                .attr("type", "checkbox")
+                .attr("id", "selectAll")
+                .attr("checked", true);
+
+            selectAllDiv.append("label")
+                .attr("for", "selectAll")
+                .text("Select All")
+                .style("font-size", "12px");
+
+            // Create Unselect All option with div wrapper
+            const unselectAllDiv = checkboxContainer1.append("div")
+                .style("width", "120px")
+                .style("height", "20px")
+                .style("display", "flex")         // 新增
+                .style("align-items", "flex-end") // 新增
+                .style("gap", "5px");
+
+            unselectAllDiv.append("input")
+                .attr("type", "checkbox")
+                .attr("id", "unselectAll");
+
+            unselectAllDiv.append("label")
+                .attr("for", "unselectAll")
+                .text("Unselect All")
+                .style("font-size", "12px");
+            // #endregion
+
+            // #region Checkbox: Facilities
+            const genreFacRoom = ['Adaptor', 'Air Conditioning', 'Cable TV', 'Ceiling Fan', 'Reading Light', 'Security Locker'];
+            const genreFacBath = ['Hair Dryer', 'Hot Shower', 'Hot Tub', 'Iron'];
+            const genreFacKit = ['Cooker', 'Dishwasher', 'Fridge', 'Microwave', 'Utensils'];
+            const genreFacHot = ['BBQ', 'Child Play Area', 'Common Room', 'Elevator', 'Fitness Centre', 'KeyCard Access', 'Meeting Room', 'Outdoor Terrace', 'Parking', 'Self Catering', 'Washing Machine', 'Wheelchair'];
+
+            const checkboxContainer2 = d3.select(".checkbox-container2");
+
+            checkboxContainer2
+                .style("display", "flex")
+                .style("flex-wrap", "wrap")
+                .style("width", "250px")
+                .style("padding-bottom", "10px");
+
+            // Create sections for each facility type
+            [
+                { title: "Room Facilities", data: genreFacRoom },
+                { title: "Bathroom Facilities", data: genreFacBath },
+                { title: "Kitchen Facilities", data: genreFacKit },
+                { title: "Hotel Facilities", data: genreFacHot }
+            ].forEach(section => {
+                // Add section title
+                checkboxContainer2.append("div")
+                    .style("width", "100%")
+                    .style("padding-bottom", "0px")
+                    .style("padding-top", "10px")
+                    .style("font-weight", "bold")
+                    .style("font-size", "16px")
+                    .text(section.title);
+
+                // Add checkboxes for this section
+                section.data.forEach(item => {
+                    const itemDiv = checkboxContainer2.append("div")
+                        .style("width", "120px")
+                        .style("height", "20px")
+                        .style("display", "flex")
+                        .style("align-items", "flex-end")
+                        .style("gap", "5px");
+
+                    itemDiv.append("input")
+                        .attr("class", "checkbox facility-checkbox")
+                        .attr("type", "checkbox")
+                        .attr("id", "facility_" + item.replace(/\s+/g, '_'))
+                        .attr("name", "facility")
+                        .attr("value", item)
+                        .attr("checked", true);
+
+                    itemDiv.append("label")
+                        .attr("for", "facility_" + item.replace(/\s+/g, '_'))
+                        .text(item)
+                        .style("font-size", "12px");
+                });
+            });
+
+            // Create Select All option with div wrapper
+            const selectAllFacDiv = checkboxContainer2.append("div")
+                .style("width", "120px")
+                .style("height", "20px")
+                .style("display", "flex")
+                .style("align-items", "flex-end")
+                .style("gap", "5px");
+
+            selectAllFacDiv.append("input")
+                .attr("type", "checkbox")
+                .attr("id", "selectAll_Fac")
+                .attr("checked", true);
+
+            selectAllFacDiv.append("label")
+                .attr("for", "selectAll_Fac")
+                .text("Select All")
+                .style("font-size", "12px");
+
+            // Create Unselect All option with div wrapper
+            const unselectAllFacDiv = checkboxContainer2.append("div")
+                .style("width", "120px")
+                .style("height", "20px")
+                .style("display", "flex")
+                .style("align-items", "flex-end")
+                .style("gap", "5px");
+
+            unselectAllFacDiv.append("input")
+                .attr("type", "checkbox")
+                .attr("id", "unselectAll_Fac");
+
+            unselectAllFacDiv.append("label")
+                .attr("for", "unselectAll_Fac")
+                .text("Unselect All")
+                .style("font-size", "12px");
+            // #endregion
+
+            // #region Checkbox: Dining
+            const genreDin = ['Bar', 'Cafe', 'Restaurant', 'Vending Machine'];
+            const checkboxContainer3 = d3.select(".checkbox-container3");
+
+            checkboxContainer3
+                .style("display", "flex")
+                .style("flex-wrap", "wrap")
+                .style("width", "250px")
+                .style("padding-bottom", "10px");
+
+            // Create individual checkbox items with div wrapper
+            genreDin.forEach(d => {
+                const itemDiv = checkboxContainer3.append("div")
+                    .style("width", "120px")
+                    .style("height", "20px")
+                    .style("display", "flex")
+                    .style("align-items", "flex-end")
+                    .style("gap", "5px");
+
+                itemDiv.append("input")
+                    .attr("class", "checkbox")
+                    .attr("type", "checkbox")
+                    .attr("id", "genre_" + d)
+                    .attr("name", "genre")
+                    .attr("value", d)
+                    .attr("checked", true);
+
+                itemDiv.append("label")
+                    .attr("for", "genre_" + d)
+                    .text(d)
+                    .style("font-size", "12px");
+            });
+
+            // Create Select All option with div wrapper
+            const selectAllDinDiv = checkboxContainer3.append("div")
+                .style("width", "120px")
+                .style("height", "20px")
+                .style("display", "flex")
+                .style("align-items", "flex-end")
+                .style("gap", "5px");
+
+            selectAllDinDiv.append("input")
+                .attr("type", "checkbox")
+                .attr("id", "selectAll_Din")
+                .attr("checked", true);
+
+            selectAllDinDiv.append("label")
+                .attr("for", "selectAll_Din")
+                .text("Select All")
+                .style("font-size", "12px");
+
+            // Create Unselect All option with div wrapper
+            const unselectAllDinDiv = checkboxContainer3.append("div")
+                .style("width", "120px")
+                .style("height", "20px")
+                .style("display", "flex")
+                .style("align-items", "flex-end")
+                .style("gap", "5px");
+
+            unselectAllDinDiv.append("input")
+                .attr("type", "checkbox")
+                .attr("id", "unselectAll_Din");
+
+            unselectAllDinDiv.append("label")
+                .attr("for", "unselectAll_Din")
+                .text("Unselect All")
+                .style("font-size", "12px");
+            // #endregion
+
+            // #region Checkbox: Entertainment
+            const genreEnt = ['Boardgame', 'DVD', 'Foosball', 'PlayStation', 'Pool Table', 'Wii'];
+            const checkboxContainer4 = d3.select(".checkbox-container4");
+
+            checkboxContainer4
+                .style("display", "flex")
+                .style("flex-wrap", "wrap")
+                .style("width", "250px")
+                .style("padding-bottom", "10px");
+
+            // Create individual checkbox items with div wrapper
+            genreEnt.forEach(d => {
+                const itemDiv = checkboxContainer4.append("div")
+                    .style("width", "120px")
+                    .style("height", "20px")
+                    .style("display", "flex")
+                    .style("align-items", "flex-end")
+                    .style("gap", "5px");
+
+                itemDiv.append("input")
+                    .attr("class", "checkbox")
+                    .attr("type", "checkbox")
+                    .attr("id", "genre_" + d)
+                    .attr("name", "genre")
+                    .attr("value", d)
+                    .attr("checked", true);
+
+                itemDiv.append("label")
+                    .attr("for", "genre_" + d)
+                    .text(d)
+                    .style("font-size", "12px");
+            });
+
+            // Create Select All option with div wrapper
+            const selectAllEntDiv = checkboxContainer4.append("div")
+                .style("width", "120px")
+                .style("height", "20px")
+                .style("display", "flex")
+                .style("align-items", "flex-end")
+                .style("gap", "5px");
+
+            selectAllEntDiv.append("input")
+                .attr("type", "checkbox")
+                .attr("id", "selectAll_Ent")
+                .attr("checked", true);
+
+            selectAllEntDiv.append("label")
+                .attr("for", "selectAll_Ent")
+                .text("Select All")
+                .style("font-size", "12px");
+
+            // Create Unselect All option with div wrapper
+            const unselectAllEntDiv = checkboxContainer4.append("div")
+                .style("width", "120px")
+                .style("height", "20px")
+                .style("display", "flex")
+                .style("align-items", "flex-end")
+                .style("gap", "5px");
+
+            unselectAllEntDiv.append("input")
+                .attr("type", "checkbox")
+                .attr("id", "unselectAll_Ent");
+
+            unselectAllEntDiv.append("label")
+                .attr("for", "unselectAll_Ent")
+                .text("Unselect All")
+                .style("font-size", "12px");
+            // #endregion
+
+            // #region Checkbox: Select/Unselect
+            function setupCheckboxControls(containerClass, selectAllId, unselectAllId) {
+                const selectAll = document.getElementById(selectAllId);
+                const unselectAll = document.getElementById(unselectAllId);
+                const checkboxes = document.querySelectorAll(`${containerClass} .checkbox`);
+
+                // Select All
+                selectAll.addEventListener('change', function () {
+                    if (this.checked) {
+                        checkboxes.forEach(checkbox => {
+                            if (checkbox.id !== selectAllId && checkbox.id !== unselectAllId) {
+                                checkbox.checked = true;
+                            }
+                        });
+                        unselectAll.checked = false;
+                    }
+                });
+
+                // Unselect All
+                unselectAll.addEventListener('change', function () {
+                    if (this.checked) {
+                        checkboxes.forEach(checkbox => {
+                            if (checkbox.id !== selectAllId && checkbox.id !== unselectAllId) {
+                                checkbox.checked = false;
+                            }
+                        });
+                        selectAll.checked = false;
+                    }
+                });
+
+                // Unselect SelectAll when selected
+                checkboxes.forEach(checkbox => {
+                    if (checkbox.id !== selectAllId && checkbox.id !== unselectAllId) {
+                        checkbox.addEventListener('change', function () {
+                            const allChecked = Array.from(checkboxes)
+                                .filter(cb => cb.id !== selectAllId && cb.id !== unselectAllId)
+                                .every(cb => cb.checked);
+
+                            const allUnchecked = Array.from(checkboxes)
+                                .filter(cb => cb.id !== selectAllId && cb.id !== unselectAllId)
+                                .every(cb => !cb.checked);
+
+                            selectAll.checked = allChecked;
+                            unselectAll.checked = allUnchecked;
+                        });
+                    }
+                });
+            }
+
+            // Checkbox control 
+            setupCheckboxControls('.checkbox-container1', 'selectAll', 'unselectAll');                    // General Services
+            setupCheckboxControls('.checkbox-container2', 'selectAll_Fac', 'unselectAll_Fac');           // Hotel Facilities
+            setupCheckboxControls('.checkbox-container3', 'selectAll_Din', 'unselectAll_Din');           // Dining & Beverages
+            setupCheckboxControls('.checkbox-container4', 'selectAll_Ent', 'unselectAll_Ent');           // Leisure & Entertainments
+            // #endregion
+
+            // #region Function: Filter Hostel
+            function hostelFilter() {
+                // 獲取已選中的checkbox值
+                const checkedGeneral = document.querySelectorAll(".checkbox-container1 input[type='checkbox']:checked:not(#selectAll):not(#unselectAll)");
+                const checkedFacilities = document.querySelectorAll(".checkbox-container2 input[type='checkbox']:checked:not(#selectAll_Fac):not(#unselectAll_Fac)");
+                const checkedDining = document.querySelectorAll(".checkbox-container3 input[type='checkbox']:checked:not(#selectAll_Din):not(#unselectAll_Din)");
+                const checkedEntertainment = document.querySelectorAll(".checkbox-container4 input[type='checkbox']:checked:not(#selectAll_Ent):not(#unselectAll_Ent)");
+
+                const selectedValues = {
+                    general: Array.from(checkedGeneral).map(cb => ({ display: cb.value, field: serviceMapping[cb.value] })),
+                    facilities: Array.from(checkedFacilities).map(cb => ({ display: cb.value, field: serviceMapping[cb.value] })),
+                    dining: Array.from(checkedDining).map(cb => ({ display: cb.value, field: serviceMapping[cb.value] })),
+                    entertainment: Array.from(checkedEntertainment).map(cb => ({ display: cb.value, field: serviceMapping[cb.value] }))
+                };
+
+                // 篩選旅館並更新 currentFilteredHostels
+                currentFilteredHostels = hostelData.filter(hostel => {
+                    const hasGeneral = selectedValues.general.length === 0 ||
+                        selectedValues.general.some(service => hostel[service.field]?.toLowerCase() === "yes");
+
+                    const hasFacilities = selectedValues.facilities.length === 0 ||
+                        selectedValues.facilities.some(facility => hostel[facility.field]?.toLowerCase() === "yes");
+
+                    const hasDining = selectedValues.dining.length === 0 ||
+                        selectedValues.dining.some(dining => hostel[dining.field]?.toLowerCase() === "yes");
+
+                    const hasEntertainment = selectedValues.entertainment.length === 0 ||
+                        selectedValues.entertainment.some(entertainment => hostel[entertainment.field]?.toLowerCase() === "yes");
+
+                    return hasGeneral && hasFacilities && hasDining && hasEntertainment;
+                });
+
+                // 更新視覺化
+                updateMap(currentFilteredHostels);
+                updateBoxPlot(currentFilteredHostels);
+                updateLineChart(currentFilteredHostels);
+                updateRadarChart(currentFilteredHostels);
+                updateRankingChart(currentFilteredHostels);
+
+                // 重新應用當前搜索
+                const searchInput = document.getElementById("search-input");
+                handleSearch.call(searchInput);
+
+                return currentFilteredHostels;
+            }
+            // #endregion
+
+            // #region Function: Update Map
+            function updateMap(filteredHostels) {
+                // 重新計算旅館數量
+                const hostelCounts = {};
+                filteredHostels.forEach(hostel => {
+                    if (hostel.city && cityPrefectureMap[hostel.city]) {
+                        const prefectureName = cityPrefectureMap[hostel.city];
+                        hostelCounts[prefectureName] = (hostelCounts[prefectureName] || 0) + 1;
+                    }
+                });
+
+                // 更新地圖顏色
+                const maxHostels = d3.max(Object.values(hostelCounts)) || 1;
+                const colorScale = d3.scaleSequential()
+                    .domain([0, maxHostels])
+                    .interpolator(t => d3.interpolate("#f9f9f9", "#004080")(t));
+
+                // 更新地圖顏色及互動效果
+                svg.selectAll(".prefecture")
+                    .each(function (d) {
+                        const selection = d3.select(this);
+                        const prefName = d.properties.nam_ja;
+                        const selectedPrefName = selectedCity ? cityPrefectureMap[selectedCity] : null;
+                        const hasHostels = hostelCounts[prefName] && hostelCounts[prefName] > 0;
+
+                        // Clear existing event listeners
+                        selection.on("mouseover", null)
+                            .on("mouseout", null)
+                            .on("click", null);
+
+                        // Transition to new fill color
+                        selection.transition()
+                            .duration(500)
+                            .attr("fill", () => {
+                                if (prefName === selectedPrefName) {
+                                    return "#ff0000";
+                                }
+                                // 如果該地區沒有旅館，使用最淺的顏色
+                                if (!hasHostels) {
+                                    return "#f9f9f9";
+                                }
+                                return colorScale(hostelCounts[prefName]);
+                            });
+
+                        // Add new event listeners only if the prefecture has hostels
+                        if (hasHostels) {
+                            selection
+                                .on("mouseover", function (event) {
+                                    const count = hostelCounts[prefName] || 0;
+                                    const englishName = prefectureToEnglish[prefName] || prefName;
+
+                                    // 放大效果
+                                    selection
+                                        .transition()
+                                        .duration(200)
+                                        .attr("transform", function (d) {
+                                            const centroid = path.centroid(d);
+                                            return `translate(${centroid[0]},${centroid[1]}) scale(${scaleSize}) translate(${-centroid[0]},${-centroid[1]})`;
+                                        });
+
+                                    // 显示tooltip
+                                    mapTooltip.transition()
+                                        .duration(200)
+                                        .style("opacity", .9);
+
+                                    mapTooltip.html(`
+                            <strong>${englishName}</strong><br/>
+                            <strong>Hostel count:</strong> ${count}
+                        `)
+                                        .style("left", (event.pageX + 10) + "px")
+                                        .style("top", (event.pageY - 28) + "px");
+                                })
+                                .on("mouseout", function () {
+                                    // 恢复原始大小
+                                    selection
+                                        .transition()
+                                        .duration(200)
+                                        .attr("transform", "");
+
+                                    // 隐藏tooltip
+                                    mapTooltip.transition()
+                                        .duration(500)
+                                        .style("opacity", 0);
+                                })
+                                .on("click", function (event, d) {
+                                    const prefName = d.properties.nam_ja;
+                                    const city = Object.keys(cityPrefectureMap)
+                                        .find(city => cityPrefectureMap[city] === prefName);
+
+                                    if (city) {
+                                        const currentSelection = d3.select(this);
+
+                                        // 使用狀態追蹤來確定是否為紅色
+                                        prefectureStates[prefName] = !prefectureStates[prefName];
+
+                                        if (prefectureStates[prefName]) {
+                                            // 變為紅色
+                                            currentSelection
+                                                .transition()
+                                                .duration(200)
+                                                .attr("fill", "#ff0000");
+                                        } else {
+                                            // 恢復原始顏色
+                                            currentSelection
+                                                .transition()
+                                                .duration(200)
+                                                .attr("fill", d => {
+                                                    const pName = d.properties.nam_ja;
+                                                    const count = hostelCounts[pName] || 0;
+                                                    return colorScale(count);
+                                                });
+                                        }
+
+                                        highlightCity(city);
+                                    }
+                                });
+                        }
+                    });
+
+                // Update legend scale
+                const legendScale = d3.scaleLinear()
+                    .domain([maxHostels, 0])
+                    .range([0, legendHeight]);
+
+                const legendAxis = d3.axisRight(legendScale)
+                    .ticks(maxHostels <= 1 ? 1 : 5) // 當最大值為1時只顯示兩個刻度
+                    .tickFormat(d3.format("d")) // 使用整數格式
+                    .tickValues(maxHostels <= 1 ? [0, 1] : null); // 當最大值為1時強制顯示0和1
+
+                svg.select(".mapLegend")
+                    .select("g")
+                    .transition()
+                    .duration(500)
+                    .call(legendAxis)
+                    .call(g => {
+                        g.selectAll(".tick line")  // 選擇刻度線
+                            .attr("stroke", "#f9f9f9"); // 設置刻度線顏色為白色
+                        g.selectAll("text")  // 選擇文字
+                            .attr("fill", "#f9f9f9")
+                            .attr("font-size", "12px");
+                    });
+            }
+            // #endregion
+
+            // #region Function: Hightlight City
+            // Update the highlightCity function to maintain consistency
+            function highlightCity(city) {
+                if (selectedCity === city) {
+                    resetHighlights();
+                    selectedCity = null;
+                    return;
+                }
+
+                resetHighlights();
+                selectedCity = city;
+
+                // Update all visualizations with the new selection
+                const prefName = cityPrefectureMap[city];
+
+                // Highlight map
+                svg.selectAll(".prefecture")
+                    .filter(d => d.properties.nam_ja === prefName)
+                    .attr("fill", "#ff0000");
+
+                // Highlight boxplot
+                svg.selectAll(".box")
+                    .filter(d => d.city === city)
+                    .select("rect")
+                    .attr("fill", "#ff0000");
+
+                // Highlight line chart points
+                ratingMetrics.forEach(metric => {
+                    svg.selectAll(`.dot-${metric}`)
+                        .filter(d => d.city === city)
+                        .attr("fill", "#ff0000");
+                });
+
+                // Highlight radar chart point
+                svg.selectAll(".radar-point")
+                    .filter(d => d.city === city)
+                    .attr("fill", "#ff0000");
+
+                // Highlight bar chart
+                svg.selectAll(".bar")
+                    .filter(d => d.city === city)
+                    .attr("fill", "#ff0000");
+            }
+            // #endregion
+
+            // #region Function: Reset Highlight
+            function resetHighlights() {
+                // Reset map colors
+                svg.selectAll(".prefecture")
+                    .attr("fill", d => {
+                        const prefName = d.properties.nam_ja;
+                        const count = hostelCounts[prefName] || 0;
+                        return colorScale(count);
+                    });
+
+                // Reset boxplot colors
+                svg.selectAll(".box rect")
+                    .attr("fill", "#4682B4");
+
+                // Reset line chart colors
+                ratingMetrics.forEach(metric => {
+                    svg.selectAll(`.dot-${metric}`)
+                        .attr("fill", colors[metric]);
+                });
+
+                // Reset radar chart colors
+                svg.selectAll(".radar-point")
+                    .attr("fill", "#f9f9f9");
+
+                // Reset bar chart colors
+                svg.selectAll(".bar")
+                    .attr("fill", "#4682B4");
+            }
+            // #endregion
+
+            // #region Function: Update Boxplot
+            function updateBoxPlot(filteredHostels) {
+                // 重新計算價格數據
+                const prices = {};
+                filteredHostels.forEach(d => {
+                    if (!prices[d.city]) {
+                        prices[d.city] = [];
+                    }
+                    if (!isNaN(d.price)) {
+                        prices[d.city].push(+d.price);
+                    }
+                });
+
+                // 計算箱型圖數據
+                const boxPlotData = Object.entries(prices)
+                    .filter(([_, prices]) => prices.length > 0)
+                    .map(([city, prices]) => {
+                        const sorted = prices.sort((a, b) => a - b);
+                        const q1 = d3.quantile(sorted, 0.25);
+                        const median = d3.quantile(sorted, 0.5);
+                        const q3 = d3.quantile(sorted, 0.75);
+                        const iqr = q3 - q1;
+                        const min = d3.max([q1 - 1.5 * iqr, d3.min(sorted)]);
+                        const max = d3.min([q3 + 1.5 * iqr, d3.max(sorted)]);
+
+                        return {
+                            city,
+                            min,
+                            q1,
+                            median,
+                            q3,
+                            max,
+                            count: prices.length,
+                            outliers: sorted.filter(d => d < min || d > max)
+                        };
+                    });
+
+                const boxPlotSvg = svg.select(".boxplot-container");
+                const boxWidth = xScale.bandwidth();
+
+                // 先移除所有現有的箱型圖元素
+                boxPlotSvg.selectAll(".box").remove();
+
+                // 創建新的箱型圖組
+                const boxes = boxPlotSvg.selectAll(".box")
+                    .data(boxPlotData)
+                    .enter()
+                    .append("g")
+                    .attr("class", "box")
+                    .attr("transform", d => `translate(${xScale(d.city)},0)`);
+
+                // 添加鬍鬚線（從 median 開始生長）
+                boxes.append("line")
+                    .attr("class", "whisker")
+                    .attr("x1", boxWidth * 0.5)
+                    .attr("x2", boxWidth * 0.5)
+                    .attr("y1", d => yScale(d.median))
+                    .attr("y2", d => yScale(d.median))
+                    .attr("stroke", "#f9f9f9")
+                    .attr("stroke-width", 1)
+                    .transition()
+                    .duration(750)
+                    .attr("y1", d => yScale(d.min))
+                    .attr("y2", d => yScale(d.max));
+
+                // 添加箱體（從 median 開始生長）
+                boxes.append("rect")
+                    .attr("x", boxWidth * 0.25)
+                    .attr("width", boxWidth * 0.5)
+                    .attr("y", d => yScale(d.median))
+                    .attr("height", 0)
+                    .attr("fill", d => d.city === selectedCity ? "#ff0000" : "#4682B4")
+                    .attr("stroke", "#f9f9f9")
+                    .attr("stroke-width", 1)
+                    .transition()
+                    .duration(750)
+                    .attr("y", d => yScale(d.q3))
+                    .attr("height", d => yScale(d.q1) - yScale(d.q3));
+
+                // 添加中位數線（固定在 median）
+                boxes.append("line")
+                    .attr("class", "median")
+                    .attr("x1", boxWidth * 0.25)
+                    .attr("x2", boxWidth * 0.75)
+                    .attr("y1", d => yScale(d.median))
+                    .attr("y2", d => yScale(d.median))
+                    .attr("stroke", "#f9f9f9")
+                    .attr("stroke-width", 1.5);
+
+                // 上下邊界線（使用g元素群組）
+                const whiskerCaps = boxes.append("g")
+                    .attr("class", "whisker-caps");
+
+                // 添加上界線（從 median 開始）
+                whiskerCaps.append("line")
+                    .attr("class", "whisker-cap upper")
+                    .attr("x1", boxWidth * 0.25)
+                    .attr("x2", boxWidth * 0.75)
+                    .attr("y1", d => yScale(d.median))
+                    .attr("y2", d => yScale(d.median))
+                    .attr("stroke", "#f9f9f9")
+                    .attr("stroke-width", 1)
+                    .transition()
+                    .duration(750)
+                    .attr("y1", d => yScale(d.max))
+                    .attr("y2", d => yScale(d.max));
+
+                // 添加下界線（從 median 開始）
+                whiskerCaps.append("line")
+                    .attr("class", "whisker-cap lower")
+                    .attr("x1", boxWidth * 0.25)
+                    .attr("x2", boxWidth * 0.75)
+                    .attr("y1", d => yScale(d.median))
+                    .attr("y2", d => yScale(d.median))
+                    .attr("stroke", "#f9f9f9")
+                    .attr("stroke-width", 1)
+                    .transition()
+                    .duration(750)
+                    .attr("y1", d => yScale(d.min))
+                    .attr("y2", d => yScale(d.min));
+
+                // 添加離群值（從 median 開始生長）
+                boxes.each(function (d) {
+                    const box = d3.select(this);
+
+                    box.selectAll(".outlier")
+                        .data(d.outliers)
+                        .enter()
+                        .append("circle")
+                        .attr("class", "outlier")
+                        .attr("cx", boxWidth * 0.5)
+                        .attr("cy", yScale(d.median))
+                        .attr("r", 0)
+                        .attr("fill", "#f9f9f9")
+                        .transition()
+                        .duration(750)
+                        .attr("cy", value => yScale(value))
+                        .attr("r", 2);
+                });
+
+                // 修改 boxes 的 mouseover 和 mouseout 事件，使用與 linechart 一致的 tooltip 樣式
+                boxes
+                    .on("mouseover", function (event, d) {
+                        // 顯示 tooltip，使用淡入效果
+                        boxPlotTooltip.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+
+                        boxPlotTooltip
+                            .html(`
+                    <strong>${d.city}</strong><br/>
+                <strong>Hostel count:</strong> ${prices[d.city].length}<br/>
+                <strong>Maximum: </strong>$${(d.max * 30).toFixed(2)}<br/>
+                <strong>Q3: </strong>$${(d.q3 * 30).toFixed(2)}<br/>
+                <strong>Median: </strong>$${(d.median * 30).toFixed(2)}<br/>
+                <strong>Q1: </strong>$${(d.q1 * 30).toFixed(2)}<br/>
+                <strong>Minimum: </strong>$${(d.min * 30).toFixed(2)}<br/>
+                ${d.outliers.length > 0 ? `<strong>Outliers: </strong>${d.outliers.length}` : ''}
+                `)
+                            .style("left", (event.pageX + 20) + "px")
+                            .style("top", (event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function () {
+                        // 隱藏 tooltip，使用淡出效果
+                        boxPlotTooltip.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    })
+                    .on("click", function (event, d) {
+                        highlightCity(d.city);
+                    });
+            }
+            // #endregion
+
+            // #region Function: Update LineChart
+            function updateLineChart(filteredHostels) {
+                const ratingMetrics = ['security', 'location', 'staff', 'atmosphere', 'cleanliness'];
+                const cityRatings = {};
+                const cityHostelCounts = {};
+                const allCities = ['Tokyo', 'Kyoto', 'Osaka', 'Sapporo', 'Fukuoka',
+                    'Hiroshima', 'Nagano', 'Okinawa', 'Mount Fuji', 'Hakone'];
+
+                // Initialize cityRatings and cityHostelCounts
+                allCities.forEach(city => {
+                    cityRatings[city] = {
+                        security: [],
+                        location: [],
+                        staff: [],
+                        atmosphere: [],
+                        cleanliness: []
+                    };
+                    cityHostelCounts[city] = 0;
+                });
+
+                // Count hostels and collect ratings
+                filteredHostels.forEach(hostel => {
+                    cityHostelCounts[hostel.city]++;
+                    ratingMetrics.forEach(metric => {
+                        if (!isNaN(hostel[metric])) {
+                            cityRatings[hostel.city][metric].push(Number(hostel[metric]));
+                        }
+                    });
+                });
+
+                const cityAverages = allCities.map(city => {
+                    const averages = {
+                        city: city,
+                        hostelCount: cityHostelCounts[city]
+                    };
+                    ratingMetrics.forEach(metric => {
+                        const values = cityRatings[city][metric];
+                        averages[metric] = values.length > 0 ?
+                            values.reduce((a, b) => a + b, 0) / values.length : null;
+                    });
+                    return averages;
+                });
+
+                const lineChartSvg = svg.select(".linechart-container");
+
+                ratingMetrics.forEach(metric => {
+                    const metricData = cityAverages
+                        .sort((a, b) => a.city.localeCompare(b.city))
+                        .map(d => ({
+                            city: d.city,
+                            value: d[metric],
+                            hostelCount: d.hostelCount
+                        }));
+
+                    const lineGenerator = d3.line()
+                        .x(d => xLineScale(d.city) + xLineScale.bandwidth() / 2)
+                        .y(d => yLineScale(d.value))
+                        .defined(d => d.value !== null);
+
+                    lineChartSvg.select(`.line-${metric}`)
+                        .datum(metricData.filter(d => d.value !== null))
+                        .transition()
+                        .duration(500)
+                        .attr("d", lineGenerator);
+
+                    const dots = lineChartSvg.selectAll(`.dot-${metric}`)
+                        .data(metricData, d => d.city);
+
+                    dots.exit()
+                        .transition()
+                        .duration(500)
+                        .attr("r", 0)
+                        .remove();
+
+                    dots.transition()
+                        .duration(500)
+                        .attr("cx", d => xLineScale(d.city) + xLineScale.bandwidth() / 2)
+                        .attr("cy", d => yLineScale(d.value))
+                        .attr("r", d => d.value !== null ? 2.5 : 0);
+
+                    const dotsEnter = dots.enter()
+                        .append("circle")
+                        .attr("class", `dot-${metric}`)
+                        .attr("cx", d => xLineScale(d.city) + xLineScale.bandwidth() / 2)
+                        .attr("cy", d => yLineScale(d.value))
+                        .attr("r", 0)
+                        .attr("fill", colors[metric]);
+
+                    dotsEnter.transition()
+                        .duration(500)
+                        .attr("r", d => d.value !== null ? 2.5 : 0);
+
+                    const handleMouseOver = function (event, d) {
+                        if (d.value !== null) {
+                            d3.select(this)
+                                .transition()
+                                .duration(200)
+                                .attr("r", 6);
+
+                            lineChartTooltip.transition()
+                                .duration(200)
+                                .style("opacity", .9);
+
+                            lineChartTooltip.html(`
+                    <strong>${d.city}</strong> <br/>
+                    <strong>Hostel count:</strong> ${d.hostelCount}<br/>
+                    <strong>${metric.charAt(0).toUpperCase() + metric.slice(1)}:</strong> ${d.value.toFixed(2)}
+                `)
+                                .style("left", (event.pageX + 20) + "px")
+                                .style("top", (event.pageY - 28) + "px")
+                                .attr("font-size", "12px");
+
+                            tooltipLine.style("display", "block");
+
+                            tooltipLine.select(".tooltip-line-x")
+                                .attr("x1", xLineScale(d.city) + xLineScale.bandwidth() / 2)
+                                .attr("x2", xLineScale(d.city) + xLineScale.bandwidth() / 2)
+                                .attr("y1", yLineScale(d.value))
+                                .attr("y2", lineChartHeight - lineChartMargin.bottom);
+                        }
+                    };
+
+                    const handleMouseOut = function (event, d) {
+                        if (d.value !== null) {
+                            d3.select(this)
+                                .transition()
+                                .duration(200)
+                                .attr("r", 2.5);
+
+                            lineChartTooltip.transition()
+                                .duration(500)
+                                .style("opacity", 0);
+
+                            tooltipLine.style("display", "none");
+                        }
+                    };
+
+                    dotsEnter.on("mouseover", handleMouseOver).on("mouseout", handleMouseOut);
+                    dots.on("mouseover", handleMouseOver).on("mouseout", handleMouseOut);
+                });
+            }
+            // #endregion
+
+            // #region Function: Update RadarChart
+            function updateRadarChart(filteredHostels) {
+                const cityDistances = {};
+                filteredHostels.forEach(hostel => {
+                    if (!cityDistances[hostel.city]) {
+                        cityDistances[hostel.city] = { sum: 0, count: 0 };
+                    }
+                    if (hostel.distance) {
+                        cityDistances[hostel.city].sum += +hostel.distance;
+                        cityDistances[hostel.city].count += 1;
+                    }
+                });
+
+                const allCities = ['Tokyo', 'Kyoto', 'Osaka', 'Sapporo', 'Fukuoka',
+                    'Hiroshima', 'Nagano', 'Okinawa', 'Mount Fuji', 'Hakone'];
+
+                const averageDistances = allCities.map(city => ({
+                    city,
+                    distance: cityDistances[city]?.count > 0 ?
+                        cityDistances[city].sum / cityDistances[city].count : 0
+                }));
+
+                const maxDistance = d3.max(averageDistances, d => d.distance);
+                const radiusScale = d3.scaleLinear()
+                    .domain([0, maxDistance])
+                    .range([0, radius]);
+
+                const radarSvg = svg.select(".radar-container");
+
+                // 更新環形刻度值
+                radarSvg.selectAll(".axis-value")
+                    .data(circles)
+                    .text(d => `${Math.round(maxDistance * d / circles.length)}km`);
+
+                // 更新雷達區域
+                const pathPoints = () => {
+                    const points = averageDistances.map((d, i) => {
+                        const angle = getAngle(i);
+                        return [radiusScale(d.distance) * Math.cos(angle),
+                        radiusScale(d.distance) * Math.sin(angle)];
+                    });
+                    points.push(points[0]);
+                    return d3.line()(points);
+                };
+
+                radarSvg.select(".radar-area")
+                    .transition()
+                    .duration(500)
+                    .attr("d", pathPoints());
+
+                // 更新數據點
+                const points = radarSvg.selectAll(".radar-point")
+                    .data(averageDistances);
+
+                // 更新現有點的位置
+                points.transition()
+                    .duration(500)
+                    .attr("cx", (d, i) => radiusScale(d.distance) * Math.cos(getAngle(i)))
+                    .attr("cy", (d, i) => radiusScale(d.distance) * Math.sin(getAngle(i)));
+
+                // 移除舊的事件監聽器並重新綁定
+                points
+                    .on("mouseover", null)
+                    .on("mouseout", null)
+                    .on("click", null)
+                    .on("mouseover", function (event, d) {
+                        // 點變大的動畫
+                        d3.select(this)
+                            .transition()
+                            .duration(200)
+                            .attr("r", 6);
+
+                        radarChartTooltip.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+
+                        radarChartTooltip
+                            .html(`
+        <strong>${d.city}</strong><br/>
+        <strong>Hostel count:</strong> ${cityDistances[d.city]?.count || 0}<br/>
+        <strong>Average Distance:</strong> ${d.distance.toFixed(2)}km
+    `)
+                            .style("left", (event.pageX + 20) + "px")
+                            .style("top", (event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function () {
+                        // 點恢復原始大小
+                        d3.select(this)
+                            .transition()
+                            .duration(200)
+                            .attr("r", 3);
+
+                        radarChartTooltip.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    })
+                    .on("click", function (event, d) {
+                        d3.selectAll(".radar-point")
+                            .attr("fill", "#f9f9f9")
+                            .attr("r", 3);
+
+                        d3.select(this)
+                            .attr("fill", "#ff0000")
+                            .attr("r", 6);
+
+                        highlightCity(d.city);
+                    });
+
+                // 更新刻度值
+                circles.forEach((_, i) => {
+                    const value = Math.round(maxDistance * (i + 1) / circles.length);
+                    radarSvg.selectAll(".axis-value")
+                        .filter((_, j) => j === i)
+                        .text(value + "km");
+                });
+            }
+            // #endregion
+
+            // #region Function: Update Barchart
+            function updateRankingChart(filteredHostels) {
+                // Update current filtered data
+                currentFilteredData = filteredHostels;
+
+                const avgScores = {};
+                const cityCounts = {};
+                const allCities = ['Tokyo', 'Kyoto', 'Osaka', 'Sapporo', 'Fukuoka', 'Hiroshima', 'Nagano', 'Okinawa', 'Mount Fuji', 'Hakone'];
+
+                // Initialize all cities with 0
+                allCities.forEach(city => {
+                    avgScores[city] = 0;
+                    cityCounts[city] = 0;
+                });
+
+                // Calculate averages
+                filteredHostels.forEach(hostel => {
+                    if (hostel.city && hostel.summary_score) {
+                        const score = +hostel.summary_score;
+                        avgScores[hostel.city] += score;
+                        cityCounts[hostel.city]++;
+                    }
+                });
+
+                // Create array of averages
+                let sumAverage = Object.keys(avgScores).map(city => ({
+                    city: city,
+                    score: +(avgScores[city] / cityCounts[city]).toFixed(2) || 0,
+                    count: cityCounts[city]
+                }));
+
+                // Create sorted copy of the data
+                const sortedAverage = [...sumAverage].sort((a, b) => {
+                    if (isBarChartSorted) {
+                        if (a.score > 0 && b.score > 0) {
+                            return b.score - a.score;
+                        }
+                        if (a.score > 0) return -1;
+                        if (b.score > 0) return 1;
+                        return a.city.localeCompare(b.city);
+                    }
+                    return a.city.localeCompare(b.city);
+                });
+
+                // Update scales
+                yRankingScale.domain([0, d3.max(sortedAverage, d => d.score)]).nice();
+                xRankingScale.domain(sortedAverage.map(d => d.city));
+
+                const rankingSvg = svg.select(".ranking-container");
+
+                // Update x-axis
+                rankingSvg.select(".x-axis")
+                    .transition()
+                    .duration(500)
+                    .call(d3.axisBottom(xRankingScale))
+                    .selectAll("text")
+                    .attr("transform", "rotate(-45)")
+                    .style("text-anchor", "end")
+                    .attr("dy", "0em")
+                    .attr("dx", "-0.8em")
+                    .attr("fill", "#f9f9f9")
+                    .style("font-size", "12px");
+
+                // Update bars with proper data binding
+                const bars = rankingSvg.selectAll(".bar")
+                    .data(sortedAverage, d => d.city);
+
+                // Update existing bars
+                bars.transition()
+                    .duration(500)
+                    .attr("x", d => xRankingScale(d.city))
+                    .attr("y", d => yRankingScale(d.score))
+                    .attr("width", xRankingScale.bandwidth())
+                    .attr("height", d => rankingHeight - rankingMargin.bottom - yRankingScale(d.score))
+                    .attr("fill", d => d.city === selectedCity ? "#ff0000" : "#4682B4");
+
+                // Enter new bars
+                bars.enter()
+                    .append("rect")
+                    .attr("class", "bar")
+                    .attr("x", d => xRankingScale(d.city))
+                    .attr("y", d => yRankingScale(d.score))
+                    .attr("width", xRankingScale.bandwidth())
+                    .attr("height", d => rankingHeight - rankingMargin.bottom - yRankingScale(d.score))
+                    .attr("fill", d => d.city === selectedCity ? "#ff0000" : "#4682B4")
+                    .on("mouseover", function (event, d) {
+                        barChartTooltip.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+
+                        barChartTooltip.html(`
+                <strong>${d.city}</strong><br/>
+                <strong>Average Rating:</strong> ${d.score}<br/>
+                <strong>Hostels:</strong> ${d.count}
+            `)
+                            .style("left", (event.pageX + 20) + "px")
+                            .style("top", (event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function () {
+                        barChartTooltip.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    })
+                    .on("click", function (event, d) {
+                        highlightCity(d.city);
+                    });
+
+                // Remove old bars
+                bars.exit().remove();
+
+                // Update y-axis
+                rankingSvg.select(".y-axis")
+                    .transition()
+                    .duration(500)
+                    .call(d3.axisLeft(yRankingScale))
+                    .selectAll("text")
+                    .attr("fill", "#f9f9f9");
+
+                // Update sort button appearance
+                sortButton.select(".button-background")
+                    .attr("fill", isBarChartSorted ? "rgb(255, 255, 255)" : "#3a3a3e")
+                    .attr("stroke", isBarChartSorted ? "rgba(71, 141, 255, 0.3)" : "rgba(80, 80, 80, 0.3)");
+
+                sortButton.selectAll("path")
+                    .attr("fill", isBarChartSorted ? "rgb(71, 141, 255)" : "#ffffff");
+            }
+            // #endregion
+
+            // #region Function: Checkbox Filter
+            function addFilterListeners() {
+                const allCheckboxes = document.querySelectorAll(`
+            .checkbox-container1 input[type="checkbox"],
+            .checkbox-container2 input[type="checkbox"],
+            .checkbox-container3 input[type="checkbox"],
+            .checkbox-container4 input[type="checkbox"]
+        `);
+
+                allCheckboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', () => {
+                        hostelFilter();
+                    });
+                });
+
+            }
+            // #endregion
+
+            // #region Event Handler: Sorting Barplot
+            let isBarChartSorted = false;
+            let currentFilteredData = hostelData;
+
+            sortButton.on("click", function () {
+                isBarChartSorted = !isBarChartSorted;
+                updateRankingChart(currentFilteredData);
+            });
+            // #endregion
+
+            // #region Event Handler: Checkbox
+            addFilterListeners();
+            // #endregion
+
+        }) // Load Data Close Bracket
+
+        // #region Ziyi
+        let selectedHostels = [];
+        let allHostels = [];
+
+        // Load and process CSV data
+        d3.csv('Hostels.csv')
+            .then(data => {
+                allHostels = data.map(d => ({
+                    hostel_name: d.hostel_name,
+                    city: d.city,
+                    price: +d.price,
+                    hostel_link: d.hostel_link,  // 添加這一行來讀取 hostel_link
+                    distance: +d.distance,
+                    summary_score: +d.summary_score,
+                    rating_band: d.rating_band,
+                    value_for_money: +d.value_for_money,
+                    security: +d.security,
+                    location: +d.location,
+                    staff: +d.staff,
+                    atmosphere: +d.atmosphere,
+                    cleanliness: +d.cleanliness,
+                    facilities: +d.facilities,
+                    latitude: +d.latitude,
+                    longitude: +d.longitude,
+                    // 添加設施相關欄位
+                    free_breakfast: d.free_breakfast,
+                    free_parking: d.free_parking,
+                    free_cityMaps: d.free_cityMaps,
+                    free_wifi: d.free_wifi,
+                    free_cityTour: d.free_cityTour,
+                    free_linen: d.free_linen,
+                    free_internetAccess: d.free_internetAccess,
+                    free_towel: d.free_towel,
+                    free_airportTransfer: d.free_airportTransfer,
+                    general_washingMachine: d.general_washingMachine,
+                    general_airConditioning: d.general_airConditioning,
+                    general_securityLocker: d.general_securityLocker,
+                    general_microwave: d.general_microwave,
+                    general_hotShower: d.general_hotShower,
+                    service_24HourSecurity: d.service_24HourSecurity,
+                    service_laundry: d.service_laundry,
+                    service_luggageStorage: d.service_luggageStorage,
+                    service_reception: d.service_reception,
+                    foodDrink_cafe: d.foodDrink_cafe,
+                    foodDrink_bar: d.foodDrink_bar,
+                    foodDrink_restaurant: d.foodDrink_restaurant
+                }));
+
+                initializeVisualization(allHostels);
+
+                // Add search functionality
+                d3.select("#search-input").on("input", handleSearch);
+            })
+            .catch(error => {
+                console.error('Error loading the CSV file:', error);
+                d3.select("#hostel-grid")
+                    .html('<div class="error">Error. Please Wait</div>');
+            });
+
+        let currentPriceRange = 3000; // 添加到全局變量區域
+
+        function handleSearch() {
+            const searchTerm = this.value.toLowerCase();
+            const minVal = parseInt(document.getElementById('min-range').value);
+            const maxVal = parseInt(document.getElementById('max-range').value);
+
+            if (searchTerm === "") {
+                displayedHostels = currentFilteredHostels.filter(hostel => {
+                    const price = hostel.price * 30; // 轉換為新台幣
+                    return price >= minVal && price <= maxVal;
+                });
+            } else {
+                displayedHostels = currentFilteredHostels.filter(hostel => {
+                    const matchesSearch = hostel.hostel_name.toLowerCase().includes(searchTerm) ||
+                        hostel.city.toLowerCase().includes(searchTerm);
+                    const price = hostel.price * 30; // 轉換為新台幣
+                    return matchesSearch && price >= minVal && price <= maxVal;
+                });
+            }
+
+            updateHostelsList(displayedHostels);
+        }
+
+        // 圖片處理
+        function getImagePath(hostelName) {
+            if (!hostelName) return '/api/placeholder/120/120';
+
+            // 特殊處理檔案名稱
+            const sanitizedName = hostelName
+                .replace(/[\/\\:*?"<>|]/g, ' ') // 替換特殊字符為空格
+                .replace(/\s+/g, ' ')           // 將多個空格合併為一個空格
+                .trim()                         // 移除前後空格
+                .replace(/\s/g, '_')           // 將空格替換為底線
+                .replace(/&/g, '&');          // 保留 & 字符
+
+            return `./Image/${sanitizedName}.jpg`;  // 注意這裡改為 Image 而不是 images
+        }
+
+        function updateHostelsList(hostelsData) {
+            // First, group hostels by city
+            const hostelsByCity = {};
+            hostelsData.forEach(hostel => {
+                if (!hostelsByCity[hostel.city]) {
+                    hostelsByCity[hostel.city] = [];
+                }
+                hostelsByCity[hostel.city].push(hostel);
+            });
+
+            // Sort hostels within each city by price
+            Object.values(hostelsByCity).forEach(cityHostels => {
+                cityHostels.sort((a, b) => a.price - b.price);
+            });
+
+            // Flatten the sorted groups back into a single array
+            const sortedHostels = Object.values(hostelsByCity)
+                .flat();
+
+            const hostelGrid = d3.select("#hostel-grid");
+            hostelGrid.select(".loading").remove();
+
+            const cards = hostelGrid
+                .selectAll(".hostel-card")
+                .data(sortedHostels, d => d.hostel_name);
+
+            cards.exit().remove();
+
+            const cardsEnter = cards.enter()
+                .append("div")
+                .attr("class", "hostel-card")
+                .html(d => `
+            <div class="card-content">
+                <div class="hostel-image">
+                    <img src="${getImagePath(d.hostel_name)}" 
+                        alt="${d.hostel_name}"
+                        onerror="console.log('Image failed to load:', this.src); this.onerror=null; this.src='/api/placeholder/120/120';">
+                </div>
+                <div class="hostel-info">
+                    <div class="hostel-name" style="font-size:20px">${d.hostel_name}</div>
+                    <div class="hostel-location">
+                        <span><i class="fas fa-map-marker-alt" style="color: #29292E; margin-right: 5px"></i> ${d.city}</span>
+                        <div class="right-info">
+                            <span><i class="fas fa-star" style="color: #29292E; margin-right: 2px"></i>Overall Ratings : ${d.summary_score}</span>
+                        </div>
+                    </div>
+                    <div class="hostel-stat">
+                        <span><i class="fas fa-walking" style="color: #29292E; margin-right: 5px"></i>${d.distance} km from city center</span>
+                        <div class="right-info">
+                            <span><i class="fas fa-award" style="color: #29292E; margin-right: 5px"></i> Level：${d.rating_band}</span>
+                        </div>
+                    </div>
+                    <div class="hostel-price">NT$ ${(d.price * 30).toFixed(0)}</div>
+                    <div class="button-container">
+                        <a href="hostel-details.html" 
+                            class="view-more-btn"
+                            data-hostel='${JSON.stringify({
+                    hostel_name: d.hostel_name,
+                    hostel_link: d.hostel_link,
+                    city: d.city,
+                    price: d.price,
+                    distance: d.distance,
+                    summary_score: d.summary_score,
+                    rating_band: d.rating_band,
+                    value_for_money: d.value_for_money,
+                    security: d.security,
+                    location: d.location,
+                    staff: d.staff,
+                    atmosphere: d.atmosphere,
+                    cleanliness: d.cleanliness,
+                    facilities: d.facilities,
+                    image: getImagePath(d.hostel_name)
+                })}'>View more</a>
+                        <button class="${selectedHostels.some(h => h.hostel_name === d.hostel_name) ? 'remove-btn' : 'add-btn'}">
+                            ${selectedHostels.some(h => h.hostel_name === d.hostel_name) ? '−' : '+'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `);
+
+            // Bind view more button events
+            hostelGrid.selectAll(".view-more-btn").on("click", function (event) {
+                event.preventDefault();
+                const hostelData = JSON.parse(this.getAttribute("data-hostel"));
+                showHostelModal(hostelData);
+            });
+
+            // Update existing buttons
+            hostelGrid.selectAll(".hostel-card")
+                .classed("selected", d => selectedHostels.some(h => h.hostel_name === d.hostel_name))
+                .select("button")
+                .attr("class", d => selectedHostels.some(h => h.hostel_name === d.hostel_name) ? "remove-btn" : "add-btn")
+                .text(d => selectedHostels.some(h => h.hostel_name === d.hostel_name) ? "−" : "+")
+                .on("click", function (event, d) {
+                    handleHostelSelection(d);
+                });
+        }
+
+        function updateSelectedHostels() {
+            const selectedHostelsContainer = d3.select("#selected-hostels");
+
+            if (selectedHostels.length === 0) {
+                selectedHostelsContainer.html(`
+                    <div class="empty-state" style="font-family: Times New Roman">Please Select 2-3 hostels For Comparison</div>
+                `);
+                return;
+            }
+
+            const items = selectedHostelsContainer
+                .selectAll(".selected-hostel-item")
+                .data(selectedHostels, d => d.hostel_name);
+
+            items.exit().remove();
+
+            items.enter()
+                .append("div")
+                .attr("class", "selected-hostel-item")
+                .html(d => `
+                    <span style="font-family: Times New Roman">${d.hostel_name}</span>
+                    <button class="remove-btn">✕</button>
+                `)
+                .select("button")
+                .on("click", (event, d) => handleHostelSelection(d));
+
+            // Update compare button state
+            d3.select("#compare-btn")
+                .property("disabled", selectedHostels.length < 2);
+        }
+
+        function handleHostelSelection(hostel) {
+            const index = selectedHostels.findIndex(h => h.hostel_name === hostel.hostel_name);
+
+            if (index === -1 && selectedHostels.length < 3) {
+                selectedHostels.push(hostel);
+            } else if (index !== -1) {
+                selectedHostels.splice(index, 1);
+            }
+
+            updateHostelsList(window.hostelsData);
+            updateSelectedHostels();
+        }
+
+        function initializeVisualization(data) {
+            // Store the data globally for reuse
+            window.hostelsData = data;
+            currentFilteredHostels = data; // 添加這行
+            displayedHostels = data;
+
+            // Initial render
+            updateHostelsList(currentFilteredHostels);
+            updateSelectedHostels();
+
+            const minRange = document.getElementById('min-range');
+            const maxRange = document.getElementById('max-range');
+            const minPrice = document.getElementById('min-price');
+            const maxPrice = document.getElementById('max-price');
+
+            // 設定初始值
+            minRange.value = 0;
+            maxRange.value = 3000;
+
+            const sliderTrack = document.querySelector('.slider-track');
+
+            function setArea() {
+                const min = parseInt(minRange.value);
+                const max = parseInt(maxRange.value);
+                const percent1 = (min / minRange.max) * 100;
+                const percent2 = (max / maxRange.max) * 100;
+
+                sliderTrack.style.background = `linear-gradient(to right, 
+        #ffffff ${percent1}%, 
+        #2196F3 ${percent1}%, 
+        #2196F3 ${percent2}%, 
+        #ffffff ${percent2}%)`;
+            }
+
+            // 立即呼叫一次以設置初始狀態
+            setArea();
+
+            // Update the text display when slider values change
+            minRange.addEventListener('input', function () {
+                let minVal = parseInt(minRange.value);
+                let maxVal = parseInt(maxRange.value);
+
+                if (minVal > maxVal - 100) {
+                    minVal = maxVal - 100;
+                    minRange.value = minVal;
+                }
+
+                minPrice.innerHTML = `<strong>NT$ ${minVal}</strong>`; // Entire text in strong tag
+                currentMinPrice = minVal;
+                setArea();
+
+                const searchInput = document.getElementById('search-input');
+                handleSearch.call(searchInput);
+            });
+
+            maxRange.addEventListener('input', function () {
+                let maxVal = parseInt(maxRange.value);
+                let minVal = parseInt(minRange.value);
+
+                if (maxVal < minVal + 100) {
+                    maxVal = minVal + 100;
+                    maxRange.value = maxVal;
+                }
+
+                maxPrice.innerHTML = `<strong>NT$ ${maxVal}</strong>`; // Entire text in strong tag
+                currentMaxPrice = maxVal;
+                setArea();
+
+                const searchInput = document.getElementById('search-input');
+                handleSearch.call(searchInput);
+            });
+
+            maxRange.addEventListener('input', function () {
+                let maxVal = parseInt(maxRange.value);
+                let minVal = parseInt(minRange.value);
+
+                if (maxVal < minVal + 100) {
+                    maxVal = minVal + 100;
+                    maxRange.value = maxVal;
+                }
+
+                maxPrice.textContent = `NT$ ${maxVal}`;
+                currentMaxPrice = maxVal;
+                setArea();
+
+                const searchInput = document.getElementById('search-input');
+                handleSearch.call(searchInput);
+            });
+
+            setArea(); // 初始化滑軌顏色
+
+            // 修改比較按鈕點擊處理
+            d3.select("#compare-btn").on("click", () => {
+                if (selectedHostels.length >= 2) {
+                    // 存儲選中的客棧數據到 localStorage
+                    // 在 ListOfHostels.html 中修改 initializeVisualization 函數中的 comparisonData 部分
+                    const comparisonData = selectedHostels.map(hostel => ({
+                        hostel_name: hostel.hostel_name,
+                        city: hostel.city,
+                        price: hostel.price,
+                        distance: hostel.distance,
+                        summary_score: hostel.summary_score,
+                        rating_band: hostel.rating_band,
+                        security: hostel.security,
+                        location: hostel.location,
+                        staff: hostel.staff,
+                        atmosphere: hostel.atmosphere,
+                        cleanliness: hostel.cleanliness,
+                        facilities: hostel.facilities,
+                        Free: hostel.Free,
+                        General: hostel.General,
+                        Services: hostel.Services,
+                        'Food & Drink': hostel['Food & Drink'],
+                        Entertainment: hostel.Entertainment,
+                        // Free facilities
+                        free_breakfast: hostel.free_breakfast,
+                        free_parking: hostel.free_parking,
+                        free_cityMaps: hostel.free_cityMaps,
+                        free_wifi: hostel.free_wifi,
+                        free_cityTour: hostel.free_cityTour,
+                        free_linen: hostel.free_linen,
+                        free_internetAccess: hostel.free_internetAccess,
+                        free_towel: hostel.free_towel,
+                        free_airportTransfer: hostel.free_airportTransfer,
+                        // General facilities
+                        general_washingMachine: hostel.general_washingMachine,
+                        general_airConditioning: hostel.general_airConditioning,
+                        general_securityLocker: hostel.general_securityLocker,
+                        general_microwave: hostel.general_microwave,
+                        general_hotShower: hostel.general_hotShower,
+                        // Services
+                        service_24HourSecurity: hostel.service_24HourSecurity,
+                        service_laundry: hostel.service_laundry,
+                        service_luggageStorage: hostel.service_luggageStorage,
+                        service_reception: hostel.service_reception,
+                        // Food & Drink
+                        foodDrink_cafe: hostel.foodDrink_cafe,
+                        foodDrink_bar: hostel.foodDrink_bar,
+                        foodDrink_restaurant: hostel.foodDrink_restaurant
+                    }));
+
+                    localStorage.setItem('allHostels', JSON.stringify(allHostels));
+
+                    localStorage.setItem('comparisonData', JSON.stringify(comparisonData));
+
+                    // 跳轉到比較頁面
+                    window.open('ComparisonPage.html', '_blank');
+                }
+            });
+        }
+
+        function showHostelModal(hostelData) {
+            const modalContainer = document.getElementById('hostel-modal');
+            modalContainer.style.display = 'block';
+
+            // Add small delay to ensure display:block is processed before adding show class
+            setTimeout(() => {
+                modalContainer.classList.add('show');
+            }, 10);
+
+            // Create modal content
+            modalContainer.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <div style="font-size: 30px; font-weight: bold">${hostelData.hostel_name}
+                    <a href="${hostelData.hostel_link}" target="_blank" id="website-link" style="font-size: 18px; padding-bottom: 5px;padding-left:10px; color: #007bff;text-decoration: none">Visit Website</a>
+                </div>
+                <button class="close-modal" style="font-size:30px;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-image">
+                    <img src="${hostelData.image}" 
+                         alt="${hostelData.hostel_name}"
+                         onerror="this.onerror=null; this.src='/api/placeholder/500/400';">
+                </div>
+                <div class="modal-info">
+                    <div class="basic-info">
+                        <h3>Basic Info</h3>
+                        <p><i class="fas fa-map-marker-alt"></i> <strong>City:</strong> ${hostelData.city}</p><hr>
+                        <p><i class="fas fa-dollar-sign"></i> <strong>Price:</strong> NT$ ${(hostelData.price * 30).toFixed(0)}</p><hr>
+                        <p><i class="fas fa-star"></i> <strong>Overall Rating:</strong> ${hostelData.summary_score.toFixed(1)}</p><hr>
+                        <p><i class="fas fa-award"></i> <strong>Level: </strong>${hostelData.rating_band}</p><hr>
+                    </div>
+                    <div class="ratings">
+                        <h3>Comprehensive Assessment</h3>
+                        <p><i class="fas fa-balance-scale"></i> <strong>Value for Money:</strong> ${hostelData.value_for_money.toFixed(1)}</p><hr>
+                        <p><i class="fas fa-shield-alt"></i> <strong>Security:</strong> ${hostelData.security.toFixed(1)}</p><hr>
+                        <p><i class="fas fa-map-marked-alt"></i> <strong>Location:</strong> ${hostelData.location.toFixed(1)}</p><hr>
+                        <p><i class="fas fa-user-tie"></i> <strong>Staff:</strong> ${hostelData.staff.toFixed(1)}</p><hr>
+                        <p><i class="fas fa-smile"></i> <strong>Atmosphere: </strong>${hostelData.atmosphere.toFixed(1)}</p><hr>
+                        <p><i class="fas fa-broom"></i> <strong>Cleanliness:</strong> ${hostelData.cleanliness.toFixed(1)}</p><hr>
+                        <p><i class="fas fa-concierge-bell"></i> <strong>Facilities:</strong> ${hostelData.facilities.toFixed(1)}</p><hr>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+            // Add close button event listener
+            modalContainer.querySelector('.close-modal').addEventListener('click', hideHostelModal);
+
+            // Close modal when clicking outside
+            modalContainer.addEventListener('click', function (event) {
+                if (event.target === modalContainer) {
+                    hideHostelModal();
+                }
+            });
+        }
+
+        function hideHostelModal() {
+            const modalContainer = document.getElementById('hostel-modal');
+            modalContainer.classList.remove('show');
+
+            // Wait for the animation to complete before hiding the modal
+            setTimeout(() => {
+                modalContainer.style.display = 'none';
+            }, 300); // 300ms should match the CSS transition duration
+        }
+        // #endregion
+
+    </script>
+</body>
+
+</html>

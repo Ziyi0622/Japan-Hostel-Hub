@@ -1,0 +1,139 @@
+body {
+   font-family: Arial, sans-serif;
+   padding: 20px;
+   background-color: #29292E;
+   color: #1f2937;
+}
+
+.details-container {
+   max-width: 1000px;
+   margin: 0 auto;
+   padding: 20px;
+   background-color: #f6f5f3;
+   border-radius: 8px;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.details-header {
+   text-align: center;
+   margin-bottom: 20px;
+   padding-bottom: 10px;
+   border-bottom: 1px solid #e5e7eb;
+}
+
+.details-header h1 {
+   font-size: 24px;
+   color: #1f2937;
+   justify-content: center;
+}
+
+.details-header a {
+   color: #2563eb;
+   text-decoration: none;
+}
+
+.details-header a:hover {
+   color: #1d4ed8;
+}
+
+.back-btn {
+   text-align: left;
+   padding: 10px 20px;
+   background-color: #1d4ed8;
+   color: white;
+   border: none;
+   border-radius: 6px;
+   cursor: pointer;
+   font-size: 1rem;
+   margin-bottom: 15px;
+}
+
+.back-btn:hover {
+   background-color: #1e40af;
+}
+
+.details-content {
+   display: flex;
+   flex-direction: column;
+   gap: 30px;
+}
+
+.details-content img {
+   width: 100%;
+   height: 500px;
+   object-fit: cover;
+   border-radius: 8px;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 修改這裡：將 info-container 改為 info-wrapper */
+.info-wrapper {
+   display: grid;
+   grid-template-columns: 1fr 1fr;
+   gap: 30px;
+}
+
+.basic-info {
+   background: #fff;
+   padding: 20px 30px;
+   border-radius: 8px;
+   height: fit-content;
+}
+
+.basic-info h2 {
+   font-size: 20px;
+   margin-bottom: 15px;
+   color: #1f2937;
+}
+
+.info-item {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   padding: 8px 0;
+   border-bottom: 1px solid #e5e7eb;
+   color: #4b5563;
+   margin-bottom: 10px;
+}
+
+.info-value {
+   margin-left: auto;
+}
+
+.info-item i {
+   margin-right: 10px;
+   color: #29292E;
+}
+
+.ratings-section {
+   background: #fff;
+   padding: 20px 30px;
+   border-radius: 8px;
+   height: fit-content;
+}
+
+.ratings-section h2 {
+   font-size: 20px;
+   margin-bottom: 15px;
+   color: #1f2937;
+}
+
+.ratings-section p {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   padding: 8px 0;
+   border-bottom: 1px solid #e5e7eb;
+   color: #4b5563;
+}
+
+.rating-value {
+   margin-left: auto;
+   font-weight: bold;
+   color: #047857;
+}
+
+.info-item i, .ratings-section i {
+   margin-right: 10px;
+   color: #29292E;
+}
