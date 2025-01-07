@@ -63,3 +63,38 @@ This document outlines the architecture of NihonNights, an Interactive Dashboard
 
 6. **Facilities Comparison**
     > Comprehensive facility comparison matrix highlighting available amenities at each hostel through intuitive color coding, helping users identify hostels that best match their facility requirements.
+
+## Team Member Contributions
+### System Development ###
+* **林冠儒**
+1. System integration and final testing optimization
+2. Visualization design and implementation for Comprehensive Analysis Page
+3. Data Preprocessing
+4. Slides content development and refinement
+
+* **莊子儀**
+1. Visualization design and implementation for Search & Add Page and Comparison Page
+2. Data collection (Hostels' Image)
+3. GitHub documentation maintenance
+4. Slides content refinement
+
+### UI/UX Design ###
+* **黃楚崴**
+1. Data collection and visualization conceptualization
+2. User interface design sketches development
+3. Figma prototype implementation
+4. Slides content refinement
+
+* **葉昱辰**
+1. User interface design
+2. Figma prototype implementation
+
+### Presentation ###
+* **吳晨瑀**
+1. Data collection
+2. Development and Refinement of Presentation Slides for UI Design and System Features
+3. Oral presentation delivery
+
+* **林聲翰**
+1. User Journey Map Documentation
+2. Oral presentation delivery
