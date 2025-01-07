@@ -1,4 +1,4 @@
-# Japan Hostel Hub: Your Intelligent Japanese Hostel Guide
+# Japan Hostel Hub
 ## Project Overview
 Japan Hostel Hub is a platform providing comprehensive analysis of hostels across Japanese cities. Through interactive charts and filters, we analyze prices, ratings, distances, and facilities to streamline the hostel selection process. Our solution addresses key needs in pricing, quality, security, location, and information accessibility, enabling travelers to make informed decisions that match their requirements.
 ## System Architecture
