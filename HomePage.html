@@ -14,6 +14,19 @@
     <link rel="stylesheet" href="ListOfHostels.css">
 
     <style>
+        .add-btn.disabled {
+            background-color: #cccccc !important;
+            cursor: not-allowed !important;
+            opacity: 0.6;
+            pointer-events: none;
+            /* This prevents hover effects */
+        }
+
+        /* Override any hover effects for disabled buttons */
+        .add-btn.disabled:hover {
+            background-color: #cccccc !important;
+            cursor: not-allowed !important;
+        }
     </style>
 </head>
 
@@ -2729,8 +2742,7 @@
             });
 
             // Flatten the sorted groups back into a single array
-            const sortedHostels = Object.values(hostelsByCity)
-                .flat();
+            const sortedHostels = Object.values(hostelsByCity).flat();
 
             const hostelGrid = d3.select("#hostel-grid");
             hostelGrid.select(".loading").remove();
@@ -2741,10 +2753,18 @@
 
             cards.exit().remove();
 
+            const isAddDisabled = selectedHostels.length >= 3;
+
             const cardsEnter = cards.enter()
                 .append("div")
                 .attr("class", "hostel-card")
-                .html(d => `
+                .html(d => {
+                    const isSelected = selectedHostels.some(h => h.hostel_name === d.hostel_name);
+                    const buttonClass = isSelected ? 'remove-btn' : (isAddDisabled && !isSelected ? 'add-btn disabled' : 'add-btn');
+                    const buttonDisabled = isAddDisabled && !isSelected ? 'disabled="disabled"' : '';
+                    const buttonSymbol = isSelected ? '−' : '+';
+
+                    return `
             <div class="card-content">
                 <div class="hostel-image">
                     <img src="${getImagePath(d.hostel_name)}" 
@@ -2770,29 +2790,28 @@
                         <a href="hostel-details.html" 
                             class="view-more-btn"
                             data-hostel='${JSON.stringify({
-                    hostel_name: d.hostel_name,
-                    hostel_link: d.hostel_link,
-                    city: d.city,
-                    price: d.price,
-                    distance: d.distance,
-                    summary_score: d.summary_score,
-                    rating_band: d.rating_band,
-                    value_for_money: d.value_for_money,
-                    security: d.security,
-                    location: d.location,
-                    staff: d.staff,
-                    atmosphere: d.atmosphere,
-                    cleanliness: d.cleanliness,
-                    facilities: d.facilities,
-                    image: getImagePath(d.hostel_name)
-                })}'>View more</a>
-                        <button class="${selectedHostels.some(h => h.hostel_name === d.hostel_name) ? 'remove-btn' : 'add-btn'}">
-                            ${selectedHostels.some(h => h.hostel_name === d.hostel_name) ? '−' : '+'}
-                        </button>
+                        hostel_name: d.hostel_name,
+                        hostel_link: d.hostel_link,
+                        city: d.city,
+                        price: d.price,
+                        distance: d.distance,
+                        summary_score: d.summary_score,
+                        rating_band: d.rating_band,
+                        value_for_money: d.value_for_money,
+                        security: d.security,
+                        location: d.location,
+                        staff: d.staff,
+                        atmosphere: d.atmosphere,
+                        cleanliness: d.cleanliness,
+                        facilities: d.facilities,
+                        image: getImagePath(d.hostel_name)
+                    })}'>View more</a>
+                        <button class="${buttonClass}" ${buttonDisabled} style="${isAddDisabled && !isSelected ? 'pointer-events: none;' : ''}">${buttonSymbol}</button>
                     </div>
                 </div>
             </div>
-        `);
+        `;
+                });
 
             // Bind view more button events
             hostelGrid.selectAll(".view-more-btn").on("click", function (event) {
@@ -2805,10 +2824,24 @@
             hostelGrid.selectAll(".hostel-card")
                 .classed("selected", d => selectedHostels.some(h => h.hostel_name === d.hostel_name))
                 .select("button")
-                .attr("class", d => selectedHostels.some(h => h.hostel_name === d.hostel_name) ? "remove-btn" : "add-btn")
+                .attr("class", d => {
+                    const isSelected = selectedHostels.some(h => h.hostel_name === d.hostel_name);
+                    return isSelected ? "remove-btn" : (isAddDisabled && !isSelected ? "add-btn disabled" : "add-btn");
+                })
+                .attr("disabled", d => {
+                    const isSelected = selectedHostels.some(h => h.hostel_name === d.hostel_name);
+                    return isAddDisabled && !isSelected ? "disabled" : null;
+                })
+                .style("pointer-events", d => {
+                    const isSelected = selectedHostels.some(h => h.hostel_name === d.hostel_name);
+                    return isAddDisabled && !isSelected ? "none" : "auto";
+                })
                 .text(d => selectedHostels.some(h => h.hostel_name === d.hostel_name) ? "−" : "+")
                 .on("click", function (event, d) {
-                    handleHostelSelection(d);
+                    const isSelected = selectedHostels.some(h => h.hostel_name === d.hostel_name);
+                    if (!isAddDisabled || isSelected) {
+                        handleHostelSelection(d);
+                    }
                 });
         }
 
@@ -2850,6 +2883,22 @@
                 selectedHostels.push(hostel);
             } else if (index !== -1) {
                 selectedHostels.splice(index, 1);
+            }
+
+            // Add this to your updateHostelsList function
+            const addButtons = document.querySelectorAll('.add-btn');
+            if (selectedHostels.length >= 3) {
+                addButtons.forEach(button => {
+                    if (!button.closest('.hostel-card').classList.contains('selected')) {
+                        button.classList.add('disabled');
+                        button.setAttribute('disabled', 'true');
+                    }
+                });
+            } else {
+                addButtons.forEach(button => {
+                    button.classList.remove('disabled');
+                    button.removeAttribute('disabled');
+                });
             }
 
             updateHostelsList(window.hostelsData);

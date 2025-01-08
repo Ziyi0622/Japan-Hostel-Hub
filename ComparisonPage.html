@@ -24,15 +24,9 @@
         }
 
         .comparison-container {
-            max-width: 1400px;
+            max-width: 1500px;
             margin: 0px;
             padding: 20px;
-        }
-
-        h1 {
-            color: #ffffff;
-            margin-bottom: 20px;
-            font-size: 40px;
         }
 
         #comparison-content {
@@ -120,14 +114,12 @@
             color: #333;
         }
 
-        .header-container {
-            display: flex;
-            align-items: center;
-            gap: 110px;
-        }
-
         .legend {
             display: flex;
+            margin-left: auto;
+            /* 推到右側 */
+            margin-right: 20px;
+            /* 與按鈕的間距 */
             gap: 20px;
             align-items: center;
         }
@@ -171,6 +163,163 @@
             width: 600px;
             height: 150px;
         }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            /* 改為 opacity 控制顯示 */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin-top: 100px;
+            margin-left: 550px;
+            padding: 10px;
+            border-radius: 5px;
+            width: 500px;
+            position: relative;
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+
+        /* 當 modal 顯示時的狀態 */
+        .modal.show {
+            opacity: 1;
+            display: block;
+        }
+
+        .modal.show .modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /*.result-btn {
+            background-color: #292962;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color 0.3s;
+        }*/
+
+        /* 新增一個 div 包裝 button 和 legend */
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 180px;
+            /* 適當的間距 */
+            min-width: fit-content;
+            /* 確保不會被壓縮 */
+        }
+
+        .header-container {
+            width: 1540px;
+            display: flex;
+            align-items: center;
+            padding-right: 0;
+            gap: 20px;
+            /* 設定元素間的基本間距 */
+        }
+
+        h1 {
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-size: 40px;
+            white-space: nowrap;
+            /* 防止標題換行 */
+            margin-right: auto;
+            /* 將標題推到最左邊 */
+        }
+
+        #hostel-legend {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .result-btn {
+            background-color: #bc1a1a;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            /* 將按鈕推到最右邊 */
+        }
+
+        .result-btn:hover {
+            background-color: #1d1d4f;
+        }
+
+        .ranking-item {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background-color: #f5f5f5;
+        }
+
+        .ranking-item h3 {
+            margin: 0 0 10px 0;
+            color: #292962;
+        }
+
+        .ranking-details {
+            margin-left: 50px;
+            font-size: 16px;
+            color: #666;
+        }
+
+        .close {
+            position: absolute;
+            right: 15px;
+            top: 19px;
+            width: 24px;
+            height: 24px;
+            font-size: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+
+        .close:hover {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+
+        /* 調整標題與關閉按鈕的間距 */
+        .modal-content h2 {
+            padding-right: 40px;
+            /* 給關閉按鈕留空間 */
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 
@@ -178,9 +327,22 @@
     <div class="comparison-container">
         <div class="header-container">
             <h1>Japan Hostel Comparison</h1>
-            <div class="legend" id="hostel-legend">
+            <div class="header-right">
+                <div class="legend" id="hostel-legend"></div>
+                <button id="seeResultBtn" class="result-btn">
+                    See Result <i class="fa fa-trophy"></i>
+                </button>
             </div>
         </div>
+
+        <div id="resultModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div style="font-size: 30px; font-weight: bold;">Hostel Recommendation</div>
+                <div id="rankingResults"></div>
+            </div>
+        </div>
+
         <div id="comparison-content">
             <div class="left-section">
                 <div class="chart-container">
@@ -1471,6 +1633,168 @@
             `;
             }
         });
+
+        // Modal functionality
+        const modal = document.getElementById("resultModal");
+        const btn = document.getElementById("seeResultBtn");
+        const span = document.getElementsByClassName("close")[0];
+
+        btn.onclick = function () {
+            // Get data from the current page instead of localStorage
+            const data = [];
+            const visibleHostels = Object.keys(visibilityState).filter(key => visibilityState[key]);
+
+            // Extract data from the charts
+            visibleHostels.forEach((hostelName, index) => {
+                // Find matching data points from the charts
+                const priceData = d3.select('#price-score-chart').selectAll('.price-bar')
+                    .filter(d => d.hostel_name === hostelName)
+                    .data();
+
+                const distanceData = d3.select('#distance-chart').selectAll('.bar')
+                    .filter(d => d.hostel_name === hostelName)
+                    .data();
+
+                const detailedData = d3.select('#detailed-scores-chart').selectAll('rect')
+                    .filter(d => d.hostel_name === hostelName)
+                    .data();
+
+                // Create hostel data object with safe fallbacks
+                const hostelData = {
+                    hostel_name: hostelName,
+                    price: priceData[0]?.price || 0,
+                    distance: distanceData[0]?.distance || 0,
+                    security: detailedData.find(d => d?.security)?.security || 0,
+                    staff: detailedData.find(d => d?.staff)?.staff || 0,
+                    cleanliness: detailedData.find(d => d?.cleanliness)?.cleanliness || 0,
+                    atmosphere: detailedData.find(d => d?.atmosphere)?.atmosphere || 0,
+                    facilities: detailedData.find(d => d?.facilities)?.facilities || 0
+                };
+
+                // Count facilities
+                const facilitiesCircles = d3.select('#facilities-chart').selectAll('circle')
+                    .filter(function (d) {
+                        return d && d.hostel === hostelName && d.value;
+                    });
+
+                const facilityCount = facilitiesCircles.size();
+                hostelData.facilityCount = facilityCount;
+
+                data.push(hostelData);
+            });
+
+            showResults(data);
+            modal.style.display = "block";
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+        }
+
+        function hideModal() {
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = "none";
+            }, 300);
+        }
+
+        span.onclick = hideModal;
+
+        window.onclick = function (event) {
+            if (event.target == modal) {
+                hideModal();
+            }
+        }
+
+        function calculateScore(hostel) {
+            // Normalize scores (lower is better for price and distance)
+            const normalizedPrice = 10 - (hostel.price / 50 * 10); // Assuming max price is 50
+            const normalizedDistance = 10 - (hostel.distance / 5 * 10); // Assuming max distance is 5km
+
+            // Use the facility count directly
+            const facilityScore = (hostel.facilityCount / 21) * 10; // Assuming 21 total possible facilities
+
+            // Calculate weighted average
+            const weights = {
+                price: 0.2,
+                distance: 0.2,
+                facilities: 0.1,
+                security: 0.2,
+                staff: 0.1,
+                cleanliness: 0.1,
+                atmosphere: 0.1
+            };
+
+            return (
+                normalizedPrice * weights.price +
+                normalizedDistance * weights.distance +
+                facilityScore * weights.facilities +
+                hostel.security * weights.security +
+                hostel.staff * weights.staff +
+                hostel.cleanliness * weights.cleanliness +
+                hostel.atmosphere * weights.atmosphere
+            ).toFixed(2);
+        }
+
+        function showResults(data) {
+            if (!data || data.length === 0) {
+                const resultsContainer = document.getElementById('rankingResults');
+                resultsContainer.innerHTML = '<p>No data available for comparison.</p>';
+                return;
+            }
+
+            const rankedHostels = data
+                .map(hostel => ({
+                    ...hostel,
+                    totalScore: calculateScore(hostel)
+                }))
+                .sort((a, b) => b.totalScore - a.totalScore);
+
+            const resultsContainer = document.getElementById('rankingResults');
+            resultsContainer.innerHTML = '';
+
+            // 使用相同的顏色陣列
+            const colors = ["#FF9F87", "#7CD4FF", "#1D2B53"];  // 這是legend使用的顏色
+
+            rankedHostels.forEach((hostel, index) => {
+                // 找到該旅館在原始數據中的索引，以獲取正確的顏色
+                const originalIndex = data.findIndex(h => h.hostel_name === hostel.hostel_name);
+                const color = colors[originalIndex]; // 使用原始索引對應的顏色
+
+                const rankingItem = document.createElement('div');
+                rankingItem.className = 'ranking-item';
+                rankingItem.style.borderLeft = `4px solid ${color}`;
+
+                const medal = index === 0 ? '🏆 ' : index === 1 ? '🥈 ' : '🥉 ';
+
+                const percentage = ((hostel.totalScore / 10) * 100).toFixed(1);
+
+                // 在 showResults 函數中修改 rankingItem.innerHTML 的部分：
+
+                rankingItem.innerHTML = `
+    <h3 style="color: ${color}">
+        ${medal}${index + 1}. ${hostel.hostel_name}
+    </h3>
+    <div class="ranking-details">
+        <p style="font-size: 18px; font-weight: bold; color: #292962">
+            Overall Score: ${percentage}%
+        </p>
+        <p style="font-weight: bold; margin-top: 10px">Key Features:</p>
+        <div class="features-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; font-weight: bold">
+            <div>
+                <p style="margin: 0">🏃‍♂️ Distance: ${hostel.distance}km</p>
+                <p style="margin:0">💰 Price: NT$${(hostel.price * 30).toFixed(0)}/night</p>
+            </div>
+            <div>
+                <p style="margin: 0">🔐 Security: ${hostel.security}/10</p>
+                <p style="margin: 0">👥 Staff Service: ${hostel.staff}/10</p>
+            </div>
+        </div>
+    </div>
+`;
+
+                resultsContainer.appendChild(rankingItem);
+            });
+        }
     </script>
 </body>
 

@@ -345,7 +345,7 @@ body {
 
 .view-more-btn {
     display: inline-block;
-    background-color: #2563eb;
+    background-color: #2f2f34;
     color: white;
     width: 300px;
     height: 32px;
@@ -378,11 +378,11 @@ body {
 }
 
 .view-more-btn:hover {
-    background-color: #1d4ed8;
+    background-color: #2563eb;
 }
 
 .view-more-btn:active {
-    background-color: #1e40af;
+    background-color: #2563eb;
 }
 
 .loading {
